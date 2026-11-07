@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbital Overlap (VBT) · OgScience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --text:#e8e8e8; --muted:rgba(255,255,255,.45); --line:rgba(255,255,255,.10); --glass:rgba(255,255,255,.04); --blue:#6fa0ff; --red:#ff6b6b; --violet:#c2a8ff; }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; touch-action:manipulation; }
+  #canvas-container { position:fixed; inset:0; }
+  .noise { position:fixed; inset:0; pointer-events:none; z-index:5; opacity:.035; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .vignette { position:fixed; inset:0; pointer-events:none; z-index:4; background:radial-gradient(ellipse 80% 70% at 45% 48%, transparent 45%, rgba(0,0,0,.65) 100%); }
+  .glass { background:var(--glass); border:1px solid var(--line); border-radius:20px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+
+  #topbar { position:fixed; top:0; left:0; right:0; height:68px; z-index:20; padding:0 clamp(16px,3vw,40px); display:flex; align-items:center; justify-content:space-between; pointer-events:none; }
+  #topbar > * { pointer-events:auto; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; }
+  .brand .dot { width:32px; height:32px; border-radius:50%; background:#fff; color:#080808; display:grid; place-items:center; font-family:'Syne'; font-weight:800; font-size:14px; }
+  .brand span { font-family:'Syne'; font-weight:700; font-size:16px; letter-spacing:-.01em; }
+  .back { font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.04em; color:var(--text); text-decoration:none; padding:10px 22px; border:1px solid rgba(255,255,255,.2); border-radius:100px; transition:all .3s; }
+  .back:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+
+  #title { position:fixed; left:clamp(16px,3vw,40px); top:88px; z-index:10; max-width:320px; padding:22px 24px; }
+  .tag { display:inline-block; font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:#999; padding:6px 14px; border:1px solid var(--line); border-radius:100px; margin-bottom:14px; }
+  #title h1 { font-family:'Syne'; font-weight:800; font-size:clamp(22px,2.4vw,32px); line-height:1.05; letter-spacing:-.025em; margin-bottom:10px; }
+  .grad { background:linear-gradient(135deg,#fff 0%,#8a8a8a 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  #title p { font-size:13px; line-height:1.7; color:var(--muted); }
+  #title p b { color:#fff; font-weight:500; }
+
+  #panel { position:fixed; right:clamp(16px,3vw,40px); top:88px; width:310px; z-index:10; padding:22px; max-height:calc(100% - 190px); overflow-y:auto; }
+  .cap { font-family:'Syne'; font-weight:700; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 9px 2px; }
+  select { width:100%; appearance:none; -webkit-appearance:none; padding:13px 16px; margin-bottom:16px; border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.03) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23999' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 16px center; color:#fff; font-family:'Syne'; font-weight:700; font-size:15px; outline:none; cursor:pointer; transition:border-color .25s; }
+  select:hover, select:focus { border-color:rgba(255,255,255,.4); }
+  select option { background:#111; color:#fff; }
+  .seg { display:flex; gap:8px; margin-bottom:16px; }
+  .seg button { flex:1; padding:12px 0; border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.02); color:rgba(255,255,255,.55); font-family:'Syne'; font-weight:700; font-size:15px; cursor:pointer; transition:all .3s cubic-bezier(.16,1,.3,1); }
+  .seg button:hover { border-color:rgba(255,255,255,.4); color:#fff; }
+  .seg button.active { background:#fff; color:#080808; border-color:#fff; box-shadow:0 0 22px rgba(255,255,255,.2); }
+
+  #result { margin-top:4px; padding-top:18px; border-top:1px solid var(--line); }
+  #bond { font-family:'Syne'; font-weight:800; font-size:26px; letter-spacing:-.02em; line-height:1.1; margin-bottom:6px; transition:color .3s; }
+  #bdesc { font-size:12.5px; line-height:1.65; color:var(--muted); min-height:42px; margin-bottom:14px; }
+  .mrow { display:flex; justify-content:space-between; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  .mrow b { font-family:'Syne'; color:#fff; letter-spacing:.02em; text-transform:none; font-size:12px; }
+  #meter { position:relative; height:8px; border-radius:8px; background:rgba(255,255,255,.08); overflow:hidden; margin-bottom:6px; }
+  #meter::after { content:''; position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(255,255,255,.35); }
+  #mfill { position:absolute; top:0; bottom:0; border-radius:8px; transition:background .3s; }
+  .ends { display:flex; justify-content:space-between; font-size:10px; color:rgba(255,255,255,.3); margin-bottom:16px; }
+  .legend { display:flex; gap:18px; font-size:12px; color:var(--muted); }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+
+  #bar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:15; display:flex; align-items:center; gap:14px; padding:10px 14px 10px 24px; border-radius:100px; max-width:calc(100% - 24px); }
+  .dist { display:flex; align-items:center; gap:14px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .dist b { font-family:'Syne'; color:#fff; min-width:54px; text-align:right; letter-spacing:.02em; text-transform:none; font-size:13px; }
+  input[type=range] { -webkit-appearance:none; appearance:none; height:2px; background:rgba(255,255,255,.2); border-radius:2px; outline:none; width:min(280px,32vw); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 0 14px rgba(255,255,255,.55); border:none; cursor:pointer; }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:none; box-shadow:0 0 14px rgba(255,255,255,.55); }
+  .pill { padding:11px 20px; border-radius:100px; border:1px solid rgba(255,255,255,.2); background:transparent; color:var(--text); font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.03em; cursor:pointer; transition:all .25s; white-space:nowrap; }
+  .pill:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+  .pill.primary { background:#fff; color:#080808; border-color:#fff; }
+  .pill.primary:hover { box-shadow:0 8px 28px rgba(255,255,255,.2); }
+  .pill.on { background:rgba(111,160,255,.14); border-color:var(--blue); color:var(--blue); }
+
+  @media (max-width:860px) {
+    #title, .legend, #bdesc { display:none; }
+    #panel { top:76px; right:12px; left:12px; width:auto; padding:14px 16px; max-height:none; display:grid; grid-template-columns:1fr 1fr; column-gap:10px; }
+    #panel > .full { grid-column:1 / -1; }
+    select { margin-bottom:10px; padding:11px 14px; font-size:14px; } .seg { margin-bottom:10px; }
+    #result { padding-top:10px; } #bond { font-size:20px; margin-bottom:8px; } .ends { margin-bottom:0; }
+    #bar { flex-wrap:wrap; justify-content:center; border-radius:24px; padding:12px 14px; gap:8px; width:calc(100% - 24px); }
+    .dist { width:100%; } input[type=range] { flex:1; width:auto; } .pill { padding:10px 14px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div class="vignette"></div><div class="noise"></div>
+
+<div id="topbar">
+  <a class="brand" href="/"><div class="dot">O</div><span>OgScience</span></a>
+  <a class="back" href="/simulations">← Simulations</a>
+</div>
+
+<div id="title" class="glass">
+  <div class="tag">Chemistry · Bonding</div>
+  <h1>Valence Bond Theory<br><span class="grad">Orbital Overlap</span></h1>
+  <p>Pick two orbitals and bring the nuclei together. Overlap of <b>same-phase</b> lobes builds a bond; its shape decides whether it is <b>σ, π or δ</b>.</p>
+</div>
+
+<div id="panel" class="glass">
+  <div><div class="cap">Orbital A</div>
+    <select id="orb1"></select></div>
+  <div><div class="cap">Orbital B</div>
+    <select id="orb2"></select></div>
+  <div class="full"><div class="cap">Internuclear axis</div>
+    <div class="seg" id="axisSeg"><button data-a="x" class="active">X</button><button data-a="y">Y</button><button data-a="z">Z</button></div></div>
+
+  <div id="result" class="full">
+    <div class="cap">Resulting bond</div>
+    <div id="bond"></div>
+    <div id="bdesc"></div>
+    <div class="mrow"><span>Overlap integral</span><b id="mval">0%</b></div>
+    <div id="meter"><div id="mfill"></div></div>
+    <div class="ends"><span>− antibonding</span><span>bonding +</span></div>
+    <div class="legend"><span><i style="background:#6fa0ff"></i>Phase +</span><span><i style="background:#eee"></i>Phase −</span></div>
+  </div>
+</div>
+
+<div id="bar" class="glass">
+  <div class="dist"><span>Distance</span><input type="range" id="distance" min="0" max="10" step="0.1" value="8"><b id="dval">8.0</b></div>
+  <button class="pill primary" id="animBtn">Bring together</button>
+  <button class="pill on" id="spinBtn">Spin</button>
+  <button class="pill on" id="gridBtn">Grid</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const BLUE = 0x6fa0ff, WHITE = 0xeeeeee, D0 = 2.4;   // D0 = reference "bonding" distance
+
+/* ───────── orbital library ───────── */
+const ORBS = {
+  s:     { name: 's',         psi: (x, y, z) => 1 },
+  px:    { name: 'p(x)',      psi: (x, y, z) => x },
+  py:    { name: 'p(y)',      psi: (x, y, z) => y },
+  pz:    { name: 'p(z)',      psi: (x, y, z) => z },
+  dxy:   { name: 'd(xy)',     psi: (x, y, z) => x * y },
+  dyz:   { name: 'd(yz)',     psi: (x, y, z) => y * z },
+  dzx:   { name: 'd(zx)',     psi: (x, y, z) => z * x },
+  dx2y2: { name: 'd(x²−y²)',  psi: (x, y, z) => x * x - y * y },
+  dz2:   { name: 'd(z²)',     psi: (x, y, z) => 2 * z * z - x * x - y * y },
+};
+// symmetry about the bond axis: 0 σ, 1 π, 2 δ, −1 mixed
+const SYM = { s: { x: 0, y: 0, z: 0 }, px: { x: 0, y: 1, z: 1 }, py: { x: 1, y: 0, z: 1 }, pz: { x: 1, y: 1, z: 0 },
+  dx2y2: { x: 0, y: 0, z: 2 }, dz2: { x: -1, y: -1, z: 0 }, dxy: { x: 1, y: 1, z: 2 }, dyz: { x: 2, y: 1, z: 1 }, dzx: { x: 1, y: 2, z: 1 } };
+
+Object.entries(ORBS).forEach(([k, o]) => { [$('orb1'), $('orb2')].forEach(sel => { const op = document.createElement('option'); op.value = k; op.textContent = o.name; sel.appendChild(op); }); });
+$('orb1').value = 'px'; $('orb2').value = 'px';
+let axis = 'x';
+
+/* ───────── numerical overlap integral ─────────
+   S = ∫ψA·ψB / √(∫ψA² ∫ψB²), each ψ = angular part × e^(−r/1.4).
+   Decides phase matching and detects zero overlap (orthogonal orbitals). */
+const STEP = 0.5, NG = 12, AX = { x: 0, y: 1, z: 2 };
+const radial = (a, b, c) => Math.exp(-Math.sqrt(a * a + b * b + c * c) / 1.4);
+const norms = {};
+function norm(k) {
+  if (norms[k] !== undefined) return norms[k];
+  const f = ORBS[k].psi; let s = 0;
+  for (let i = -NG; i <= NG; i++) for (let j = -NG; j <= NG; j++) for (let l = -NG; l <= NG; l++) {
+    const x = i * STEP, y = j * STEP, z = l * STEP, v = f(x, y, z) * radial(x, y, z); s += v * v;
+  }
+  return (norms[k] = s);
+}
+function overlap(k1, k2, ax, d, flip) {
+  const f1 = ORBS[k1].psi, f2 = ORBS[k2].psi, h = d / 2, a = AX[ax]; let num = 0;
+  for (let i = -NG; i <= NG; i++) for (let j = -NG; j <= NG; j++) for (let l = -NG; l <= NG; l++) {
+    const p = [i * STEP, j * STEP, l * STEP], q1 = p.slice(), q2 = p.slice(); q1[a] += h; q2[a] -= h;   // A at −h, B at +h
+    num += f1(q1[0], q1[1], q1[2]) * radial(q1[0], q1[1], q1[2]) * f2(q2[0], q2[1], q2[2]) * radial(q2[0], q2[1], q2[2]);
+  }
+  return (flip ? -1 : 1) * num / Math.sqrt(norm(k1) * norm(k2));
+}
+
+/* ───────── three.js scene ───────── */
+const container = $('canvas-container');
+const scene = new THREE.Scene(); scene.fog = new THREE.FogExp2(0x080808, 0.022);
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 200); camera.position.set(11, 8, 14);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); container.appendChild(renderer.domElement);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06; controls.autoRotate = true; controls.autoRotateSpeed = 0.8; controls.minDistance = 6; controls.maxDistance = 40;
+controls.addEventListener('start', () => { controls.autoRotate = false; $('spinBtn').classList.remove('on'); });
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const dl = new THREE.DirectionalLight(0xffffff, 0.9); dl.position.set(8, 14, 10); scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0x4488ff, 0.6); dl2.position.set(-10, -4, -6); scene.add(dl2);
+
+// stars
+{ const n = 600, p = new Float32Array(n * 3); for (let i = 0; i < n * 3; i++) p[i] = (Math.random() - .5) * 90;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0x777777, size: .05, transparent: true, opacity: .55, fog: false }))); }
+
+// floor grid
+const grid = new THREE.GridHelper(26, 26, 0x2a2a2a, 0x161616); grid.position.y = -4.2;
+grid.material.transparent = true; grid.material.opacity = .8; scene.add(grid);
+
+// axes (selected one is highlighted) + labels
+function label(t, pos) {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+  x.font = '800 76px Syne, sans-serif'; x.fillStyle = 'rgba(255,255,255,.75)'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(t, 64, 66);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false })); s.position.copy(pos); s.scale.set(1, 1, 1); return s;
+}
+const axisLines = {};
+[['x', [1, 0, 0]], ['y', [0, 1, 0]], ['z', [0, 0, 1]]].forEach(([k, d]) => {
+  const v = new THREE.Vector3(...d), L = 8;
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([v.clone().multiplyScalar(-L), v.clone().multiplyScalar(L)]), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .15 }));
+  scene.add(line); axisLines[k] = line; scene.add(label(k.toUpperCase(), v.clone().multiplyScalar(L + .7)));
+});
+function highlightAxis() { Object.entries(axisLines).forEach(([k, l]) => { l.material.color.set(k === axis ? BLUE : 0xffffff); l.material.opacity = k === axis ? .8 : .12; }); }
+
+/* materials for the two phases */
+const mk = c => new THREE.MeshPhysicalMaterial({ color: c, emissive: c, emissiveIntensity: .22, roughness: .25, metalness: .05, clearcoat: 1, clearcoatRoughness: .15, transparent: true, opacity: .8, depthWrite: false });
+const matPos = mk(BLUE), matNeg = mk(WHITE);
+const sphereGeo = new THREE.SphereGeometry(1, 40, 40);
+
+function lobe(dir, dist, len, rad, mat) {
+  const d = new THREE.Vector3(...dir).normalize(), m = new THREE.Mesh(sphereGeo, mat);
+  m.scale.set(rad, len, rad); m.position.copy(d).multiplyScalar(dist);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); return m;
+}
+
+function buildOrbital(type, inv) {
+  const P = inv ? matNeg : matPos, N = inv ? matPos : matNeg, g = new THREE.Group();
+  const add = (dir, sgn, dist, len, rad) => g.add(lobe(dir, dist, len, rad, sgn > 0 ? P : N));
+  const S2 = [1, -1];
+  if (type === 's') { const m = new THREE.Mesh(sphereGeo, P); m.scale.setScalar(1.6); g.add(m); }
+  else if (type === 'px') { add([1, 0, 0], 1, 1.4, 1.4, .75); add([-1, 0, 0], -1, 1.4, 1.4, .75); }
+  else if (type === 'py') { add([0, 1, 0], 1, 1.4, 1.4, .75); add([0, -1, 0], -1, 1.4, 1.4, .75); }
+  else if (type === 'pz') { add([0, 0, 1], 1, 1.4, 1.4, .75); add([0, 0, -1], -1, 1.4, 1.4, .75); }
+  else if (type === 'dx2y2') { S2.forEach(s => { add([s, 0, 0], 1, 1.6, 1.45, .62); add([0, s, 0], -1, 1.6, 1.45, .62); }); }
+  else if (type === 'dxy') { S2.forEach(a => S2.forEach(b => add([a, b, 0], a * b, 1.6, 1.45, .62))); }
+  else if (type === 'dyz') { S2.forEach(a => S2.forEach(b => add([0, a, b], a * b, 1.6, 1.45, .62))); }
+  else if (type === 'dzx') { S2.forEach(a => S2.forEach(b => add([a, 0, b], a * b, 1.6, 1.45, .62))); }
+  else if (type === 'dz2') { S2.forEach(s => add([0, 0, s], 1, 1.6, 1.45, .6)); g.add(new THREE.Mesh(new THREE.TorusGeometry(1.05, .38, 24, 64), N)); }
+  // nucleus
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.11, 20, 20), new THREE.MeshBasicMaterial({ color: 0xffffff })));
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(.3, 20, 20), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .1, depthWrite: false })));
+  return g;
+}
+
+/* ───────── state / refresh ───────── */
+let obj1, obj2, flip = false, dist = 8, anim = null, bondInfo = null;
+
+function classify(k1, k2, ax, S0) {
+  const s1 = SYM[k1][ax], s2 = SYM[k2][ax];
+  if (Math.abs(S0) < 0.02) return { t: 'Zero overlap', col: '#ff6b6b', d: 'Positive and negative regions cancel exactly, so these orbitals cannot form a bond on this axis.' };
+  if (s1 >= 0 && s1 === s2) return [
+    { t: 'Sigma (σ) bond', col: '#6fa0ff', d: 'Head-on overlap along the internuclear axis. Strongest type of covalent bond.' },
+    { t: 'Pi (π) bond', col: '#ffffff', d: 'Sideways overlap of lobes above and below the axis, with a nodal plane through the nuclei.' },
+    { t: 'Delta (δ) bond', col: '#c2a8ff', d: 'Face-to-face overlap of four lobes, with two nodal planes through the axis.' }][s1];
+  return { t: 'Mixed overlap', col: '#9aa7bd', d: 'This orbital has no pure σ, π or δ symmetry on this axis, so the overlap is partial and mixed in character.' };
+}
+
+function refresh() {
+  [obj1, obj2].forEach(o => o && scene.remove(o));
+  const k1 = $('orb1').value, k2 = $('orb2').value;
+  const S0 = overlap(k1, k2, axis, D0, false);
+  flip = S0 < -1e-6;                         // global phase of B is arbitrary: flip it so lobes that meet are in phase
+  obj1 = buildOrbital(k1, false); obj2 = buildOrbital(k2, flip);
+  scene.add(obj1, obj2);
+  bondInfo = classify(k1, k2, axis, S0);
+  $('bond').textContent = bondInfo.t; $('bond').style.color = bondInfo.col; $('bdesc').textContent = bondInfo.d;
+  highlightAxis(); update();
+}
+
+function update() {
+  const h = dist / 2, a = AX[axis];
+  obj1.position.set(0, 0, 0); obj2.position.set(0, 0, 0);
+  obj1.position.setComponent(a, -h); obj2.position.setComponent(a, h);
+  $('dval').textContent = dist.toFixed(1); $('distance').value = dist;
+  const S = overlap($('orb1').value, $('orb2').value, axis, dist, flip);
+  const f = $('mfill'); f.style.left = S >= 0 ? '50%' : (50 + S * 50) + '%'; f.style.width = Math.abs(S) * 50 + '%';
+  f.style.background = S >= 0 ? '#6fa0ff' : '#ff6b6b';
+  $('mval').textContent = (S >= 0 ? '+' : '−') + Math.abs(S * 100).toFixed(0) + '%' + (Math.abs(S) < 0.02 ? ' · none' : S > 0 ? ' · bonding' : ' · antibonding');
+}
+
+/* ───────── events ───────── */
+['orb1', 'orb2'].forEach(id => $(id).addEventListener('change', refresh));
+document.querySelectorAll('#axisSeg button').forEach(b => b.onclick = () => {
+  axis = b.dataset.a; document.querySelectorAll('#axisSeg button').forEach(x => x.classList.toggle('active', x === b)); refresh();
+});
+$('distance').addEventListener('input', e => { anim = null; dist = parseFloat(e.target.value); update(); });
+$('animBtn').onclick = () => { anim = dist > D0 + 0.3 ? D0 : 8; };
+$('spinBtn').onclick = () => { controls.autoRotate = !controls.autoRotate; $('spinBtn').classList.toggle('on', controls.autoRotate); };
+$('gridBtn').onclick = () => { grid.visible = !grid.visible; $('gridBtn').classList.toggle('on', grid.visible); };
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+refresh();
+(function loop() {
+  requestAnimationFrame(loop);
+  if (anim !== null) {
+    dist += (anim - dist) * 0.05;
+    if (Math.abs(anim - dist) < 0.02) { dist = anim; anim = null; }
+    update();
+    $('animBtn').textContent = anim === null ? (dist > D0 + 0.3 ? 'Bring together' : 'Pull apart') : $('animBtn').textContent;
+  }
+  controls.update(); renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>
