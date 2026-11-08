@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ideal Gas Lab · OgScience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --text:#e8e8e8; --muted:rgba(255,255,255,.45); --line:rgba(255,255,255,.10); --glass:rgba(255,255,255,.04); --blue:#6fa0ff; --red:#ff6b6b; --violet:#c2a8ff; --gap:14px; }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; overflow:hidden; }
+  body::before { content:''; position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse 70% 50% at 50% 0%, rgba(40,40,70,.45) 0%, transparent 70%); }
+  .noise { position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.035; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .glass { background:var(--glass); border:1px solid var(--line); border-radius:20px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+
+  /* top bar (the launcher hides this and shows its own, so the space is always reserved) */
+  #topbar { position:fixed; top:0; left:0; right:0; height:68px; z-index:20; padding:0 clamp(16px,3vw,40px); display:flex; align-items:center; justify-content:space-between; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; }
+  .brand .dot { width:32px; height:32px; border-radius:50%; background:#fff; color:#080808; display:grid; place-items:center; font-family:'Syne'; font-weight:800; font-size:14px; }
+  .brand span { font-family:'Syne'; font-weight:700; font-size:16px; letter-spacing:-.01em; }
+  .back { font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.04em; color:var(--text); text-decoration:none; padding:10px 22px; border:1px solid rgba(255,255,255,.2); border-radius:100px; transition:all .3s; }
+  .back:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+
+  /* page grid: fills the viewport exactly; every block owns a cell, so nothing overlaps or scrolls */
+  #app { position:fixed; top:68px; left:0; right:0; bottom:0; padding:0 clamp(12px,2vw,28px) 16px; display:grid; grid-template-rows:auto minmax(0,1fr); gap:var(--gap); }
+  #head { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:0; }
+  #head h1 { font-family:'Syne'; font-weight:800; font-size:clamp(20px,2.2vw,30px); letter-spacing:-.025em; line-height:1.1; white-space:nowrap; }
+  .grad { background:linear-gradient(135deg,#fff 0%,#8a8a8a 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .hr { display:flex; align-items:center; gap:10px; flex:none; }
+  .tag { display:inline-block; font-size:10.5px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:#999; padding:6px 14px; border:1px solid var(--line); border-radius:100px; white-space:nowrap; }
+  .eqn { padding:7px 16px; border-radius:100px; background:rgba(111,160,255,.08); border:1px solid rgba(111,160,255,.22); font-family:'Syne'; font-weight:700; font-size:13px; color:var(--blue); white-space:nowrap; }
+
+  #main { display:grid; grid-template-columns:292px minmax(0,1fr) 310px; gap:var(--gap); min-height:0; min-width:0; }
+  .card { display:flex; flex-direction:column; min-height:0; min-width:0; padding:16px; }
+  #side { overflow-y:auto; scrollbar-width:none; } #side::-webkit-scrollbar { display:none; }
+  #rside { display:flex; flex-direction:column; gap:var(--gap); min-height:0; min-width:0; }
+  #rside .card { flex:none; } #rside .card.grow { flex:1; min-height:140px; }
+  .ch { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex:none; min-height:20px; }
+  .cap { font-family:'Syne'; font-weight:700; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .hint { font-size:11px; color:rgba(255,255,255,.3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cw { position:relative; flex:1; min-height:0; border-radius:14px; overflow:hidden; background:rgba(0,0,0,.35); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .cw canvas { display:block; flex:none; }
+  #c { touch-action:none; }
+
+  /* controls */
+  select { width:100%; appearance:none; -webkit-appearance:none; padding:11px 14px; border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.03) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23999' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 14px center; color:#fff; font-family:'Syne'; font-weight:700; font-size:13px; outline:none; cursor:pointer; transition:border-color .25s; }
+  select:hover, select:focus { border-color:rgba(255,255,255,.4); }
+  select option { background:#111; color:#fff; }
+  #note { font-size:12px; line-height:1.6; color:var(--muted); margin:10px 2px 10px; }
+  #inv { padding:9px 12px; border-radius:12px; background:rgba(111,160,255,.08); border:1px solid rgba(111,160,255,.22); font-family:'Syne'; font-weight:700; font-size:12px; color:var(--blue); text-align:center; font-variant-numeric:tabular-nums; }
+  .sec { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .sl .top { display:flex; justify-content:space-between; align-items:center; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:9px; }
+  .sl .top b { font-family:'Syne'; color:#fff; letter-spacing:.02em; text-transform:none; font-size:12.5px; }
+  .sl + .sl { margin-top:14px; }
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:2px; background:rgba(255,255,255,.2); border-radius:2px; outline:none; }
+  #fl { background:linear-gradient(90deg,#6fa0ff,#ffffff 50%,#ff6b6b); height:3px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 0 14px rgba(255,255,255,.55); border:none; cursor:pointer; }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:none; box-shadow:0 0 14px rgba(255,255,255,.55); }
+  input:disabled { opacity:.3; }
+  .btns { display:flex; gap:8px; margin-top:16px; }
+  .pill { flex:1; padding:10px 8px; border-radius:100px; border:1px solid rgba(255,255,255,.2); background:transparent; color:var(--text); font-family:'Syne'; font-weight:600; font-size:12px; letter-spacing:.02em; cursor:pointer; transition:all .25s; white-space:nowrap; }
+  .pill:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+  .pill.primary { background:#fff; color:#080808; border-color:#fff; } .pill.primary:hover { box-shadow:0 8px 28px rgba(255,255,255,.2); }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+
+  /* readings */
+  .reads { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .rd { padding:9px 12px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.02); min-width:0; }
+  .rd span { display:block; font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .rd b { display:block; font-family:'Syne'; font-weight:700; font-size:14px; margin-top:3px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  #calc { font-size:11.5px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  #calc b { color:#fff; font-family:'Syne'; }
+
+  @media (max-height:860px) {
+    :root { --gap:10px; }
+    .card { padding:12px 14px; }
+    .sec { margin-top:10px; padding-top:10px; } .sl + .sl { margin-top:10px; } .btns { margin-top:12px; }
+    #note { margin:8px 2px; font-size:11.5px; line-height:1.5; }
+    .rd { padding:6px 10px; } #calc { margin-top:6px; }
+  }
+  @media (max-height:720px) { #calc, .hint { display:none; } #head h1 { font-size:20px; } .eqn, .tag { display:none; } }
+
+  @media (max-width:980px) {
+    html, body { overflow-y:auto; height:auto; }
+    #app { position:static; display:block; padding:76px 12px 24px; }
+    #head { margin-bottom:14px; flex-wrap:wrap; } #head h1 { white-space:normal; }
+    #main { grid-template-columns:1fr; }
+    #side { overflow:visible; }
+    #main > .card .cw { flex:none; aspect-ratio:900 / 560; }
+    #rside .card.grow { flex:none; } #rside .card.grow .cw { flex:none; aspect-ratio:270 / 170; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div id="topbar">
+  <a class="brand" href="/"><div class="dot">O</div><span>OgScience</span></a>
+  <a class="back" href="/simulations">← Simulations</a>
+</div>
+
+<div id="app">
+  <div id="head">
+    <h1>Ideal Gas Lab <span class="grad">PV = nRT</span></h1>
+    <div class="hr"><span class="tag">Physics · Thermodynamics</span><span class="eqn">P = nRT / V</span></div>
+  </div>
+
+  <div id="main">
+    <!-- controls -->
+    <div id="side" class="card glass">
+      <div class="cap" style="margin-bottom:9px">Experiment</div>
+      <select id="mode" aria-label="Experiment mode">
+        <option value="free">Free play (PV = nRT)</option>
+        <option value="boyle">Boyle's law: n and T fixed</option>
+        <option value="charles">Charles's law: n and P fixed</option>
+        <option value="gay">Gay-Lussac's law: n and V fixed</option>
+        <option value="avog">Avogadro's law: P and T fixed</option>
+      </select>
+      <p id="note"></p>
+      <div id="inv"></div>
+
+      <div class="sec sl">
+        <div class="top"><label for="fl">Burner flame</label><b id="tt"></b></div>
+        <input type="range" id="fl" min="0" max="100" value="8">
+      </div>
+      <div class="sl">
+        <div class="top"><label for="lim">Lid blows off above</label><b id="lt"></b></div>
+        <input type="range" id="lim" min="2" max="30" step="0.5" value="10">
+      </div>
+      <div class="btns"><button class="pill primary" id="lidb">Replace lid</button><button class="pill" id="rst">Reset all</button></div>
+    </div>
+
+    <!-- experiment -->
+    <div class="card glass">
+      <div class="ch"><span class="cap">Experiment</span><span class="hint">Drag the red handle to pump · drag the wall to change V</span></div>
+      <div class="cw" id="cwrap"><canvas id="c" width="900" height="560" aria-label="Gas container with pump, pressure gauge and burner"></canvas></div>
+    </div>
+
+    <!-- readings + graph -->
+    <div id="rside">
+      <div class="card glass">
+        <div class="cap" style="margin-bottom:10px">Live readings</div>
+        <div class="reads" id="rds">
+          <div class="rd"><span>Pressure P</span><b id="rP" style="color:#c2a8ff"></b></div>
+          <div class="rd"><span>Volume V</span><b id="rV"></b></div>
+          <div class="rd"><span>Temperature T</span><b id="rT" style="color:#ff6b6b"></b></div>
+          <div class="rd"><span>Moles n</span><b id="rn" style="color:#6fa0ff"></b></div>
+        </div>
+        <p id="calc"></p>
+      </div>
+      <div class="card glass grow">
+        <div class="ch" style="gap:8px"><select id="gs" aria-label="Graph type" style="padding:8px 12px;font-size:12px">
+          <option value="pv">P vs V</option><option value="pi">P vs 1/V</option>
+          <option value="vt">V vs T</option><option value="pt">P vs T</option>
+          <option value="vn">V vs n</option><option value="pn">P vs n</option>
+        </select></div>
+        <div class="cw" id="gwrap"><canvas id="g" width="270" height="170"></canvas></div>
+        <div class="btns" style="margin-top:10px"><button class="pill" id="gc">Clear graph</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id),cv=$('c'),X=cv.getContext('2d'),gx=$('g').getContext('2d');
+const W=900,H=560,L=270,TOP=170,BOT=430,PXL=70,RG=0.0821,MOL=0.005,MAXP=400;
+let V=3,Tg=300,Tt=300,P=1,pD=1,lim=10,mode='free',P0=1,hy=250,acc=0,drag=null,msg='',msgT=0,tm=0;
+let parts=[],lid={open:false,x:0,y:0,vx:0,vy:0,r:0,vr:0,w:230,gone:false},samples=[];
+let canPump=true,canDrag=true,canHeat=true;
+
+/* layout helpers (display only): sharp canvases + fit each one to its own card */
+const K=Math.min(2,Math.max(1,window.devicePixelRatio||1)),GK=2;
+cv.width=W*K;cv.height=H*K;X.setTransform(K,0,0,K,0,0);
+$('g').width=270*GK;$('g').height=170*GK;gx.setTransform(GK,0,0,GK,0,0);
+function fit(c,w,h){const r=c.parentElement.getBoundingClientRect(),s=Math.min(r.width/w,r.height/h);if(s>0){c.style.width=w*s+'px';c.style.height=h*s+'px'}}
+const ro=new ResizeObserver(()=>{fit(cv,W,H);fit($('g'),270,170)});ro.observe($('cwrap'));ro.observe($('gwrap'));
+
+const gauss=()=>Math.sqrt(-2*Math.log(1-Math.random()))*Math.cos(2*Math.PI*Math.random());
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mk=(x,y)=>({x,y,gx:gauss(),gy:gauss()});
+const NOTES={
+ free:['All variables are free. Pump gas in, move the wall, heat the gas, and watch pressure respond.','PV / nT = R',()=>[P*V/(nm()*Tg),'L·atm/(mol·K)',4]],
+ boyle:['Temperature and amount are fixed. Drag the wall: when V shrinks, P rises. P ∝ 1/V.','P × V = constant',()=>[P*V,'atm·L',2]],
+ charles:['Pressure and amount are fixed. Turn up the flame: the wall moves out so V grows. V ∝ T.','V / T = constant',()=>[V/Tg,'L/K',5]],
+ gay:['Volume and amount are fixed. Turn up the flame: pressure climbs. P ∝ T.','P / T = constant',()=>[P/Tg,'atm/K',5]],
+ avog:['Pressure and temperature are fixed. Pump in gas: the wall moves out so V grows. V ∝ n.','V / n = constant',()=>[V/nm(),'L/mol',2]]};
+const nm=()=>Math.max(parts.length*MOL,1e-9);
+const GR={pv:['V (L)','P (atm)',s=>[s.V,s.P]],pi:['1/V (1/L)','P (atm)',s=>[1/s.V,s.P]],vt:['T (K)','V (L)',s=>[s.T,s.V]],
+ pt:['T (K)','P (atm)',s=>[s.T,s.P]],vn:['n (mol)','V (L)',s=>[s.n,s.V]],pn:['n (mol)','P (atm)',s=>[s.n,s.P]]};
+
+function air(){parts=[];for(let i=0;i<24;i++)parts.push(mk(L+10+Math.random()*180,TOP+10+Math.random()*240))}
+function reset(){V=3;Tg=Tt=300;lim=+$('lim').value;hy=250;acc=0;lid={open:false,x:0,y:0,vx:0,vy:0,r:0,vr:0,w:230,gone:false};air();$('mode').value='free';setMode('free');}
+function flags(){canPump=mode=='free'||mode=='avog';canDrag=mode=='free'||mode=='boyle';canHeat=mode=='free'||mode=='charles'||mode=='gay';$('fl').disabled=!canHeat}
+function setMode(m){mode=m;P0=P||1;if(m=='boyle'||m=='avog')Tt=Tg;$('fl').value=(Tt-250)/6.5;flags();
+ $('note').textContent=NOTES[m][0];$('inv').dataset.k=m;
+ $('gs').value={free:'pv',boyle:'pv',charles:'vt',gay:'pt',avog:'vn'}[m];samples=[];}
+function toast(t){msg=t;msgT=4}
+function pop(){lid.open=true;lid.x=L+(V*PXL)/2;lid.y=TOP-6;lid.w=V*PXL+16;lid.vy=-560;lid.vx=(Math.random()-.5)*140;lid.vr=(Math.random()-.5)*9;
+ toast('Lid blew off at '+P.toFixed(1)+' atm! Gas escapes until P drops to 1 atm.')}
+
+function step(dt){
+ Tg+=(Tt-Tg)*Math.min(1,dt*1.3);
+ const n=parts.length*MOL;
+ if((mode=='charles'||mode=='avog')&&n>0){V+=(clamp(n*RG*Tg/P0,1,6)-V)*Math.min(1,dt*5)}
+ const R=L+V*PXL,sg=60*Math.sqrt(Tg/300);
+ P=n>0?n*RG*Tg/V:0;
+ if(!lid.open&&P>lim)pop();
+ for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+  p.x+=p.gx*sg*dt;p.y+=p.gy*sg*dt;
+  if(p.x<L+4){p.x=L+4;p.gx=Math.abs(p.gx)}
+  if(p.x>R-4){p.x=R-4;p.gx=-Math.abs(p.gx)}
+  if(p.y>BOT-4){p.y=BOT-4;p.gy=-Math.abs(p.gy)}
+  if(p.y<TOP+4){
+   if(lid.open&&P>1){if(p.y<TOP-10){parts.splice(i,1);continue}}
+   else{p.y=TOP+4;p.gy=Math.abs(p.gy)}}}
+ while(acc>=1&&parts.length<MAXP){acc--;const p=mk(L+8,400+(Math.random()-.5)*14);p.gx=Math.abs(p.gx)+.8;parts.push(p)}
+ acc=Math.min(acc,3);
+ pD+=(P-pD)*Math.min(1,dt*8);
+ if(lid.open&&!lid.gone){lid.vy+=800*dt;lid.x+=lid.vx*dt;lid.y+=lid.vy*dt;lid.r+=lid.vr*dt;if(lid.y>H+120)lid.gone=true}
+ const s={V,P,T:Tg,n},l=samples[samples.length-1];
+ if(n>0&&(!l||Math.abs(l.V-V)>.03||Math.abs(l.T-Tg)>2||Math.abs(l.n-n)>.004||Math.abs(l.P-P)>.05)){samples.push(s);if(samples.length>500)samples.shift()}
+}
+
+function rrect(x,y,w,h,r,f,s){X.beginPath();X.roundRect(x,y,w,h,r);if(f){X.fillStyle=f;X.fill()}if(s){X.strokeStyle=s;X.stroke()}}
+function nice(g){for(const s of[1,2,5,10,20,50])if(g/s<=8)return s;return 100}
+const FONT='Syne, sans-serif';
+function draw(){
+ X.clearRect(0,0,W,H);tm+=.016;
+ const R=L+V*PXL,heat=clamp((Tg-250)/650,0,1),bint=clamp((Tt-250)/650,0,1);
+ const near=!lid.open&&P>.85*lim,shake=near?Math.sin(tm*70)*(P/lim-.8)*10:0;
+ X.fillStyle='rgba(255,255,255,.06)';X.fillRect(0,540,W,20);X.fillStyle='rgba(255,255,255,.22)';X.fillRect(0,540,W,1.5);
+ // burner
+ const bx=420;X.lineWidth=1.5;rrect(bx-48,505,96,35,6,'rgba(255,255,255,.12)','rgba(255,255,255,.28)');X.fillStyle='rgba(255,255,255,.22)';X.fillRect(bx-8,488,16,18);
+ if(bint>.04){const h=10+50*bint,fl=Math.sin(tm*22)*3,wd=10+12*bint;
+  const g=X.createLinearGradient(0,488,0,488-h);g.addColorStop(0,bint<.2?'#9fc0ff':'#ffe0a8');g.addColorStop(1,bint<.2?'#3d6fe0':'#ff6b6b');
+  X.fillStyle=g;X.beginPath();X.moveTo(bx-wd,488);X.quadraticCurveTo(bx-wd,488-h*.5,bx+fl,488-h);X.quadraticCurveTo(bx+wd,488-h*.5,bx+wd,488);X.closePath();X.fill();
+  X.fillStyle='rgba(255,255,255,.55)';X.beginPath();X.moveTo(bx-wd/2,488);X.quadraticCurveTo(bx-wd/2,488-h*.35,bx+fl/2,488-h*.6);X.quadraticCurveTo(bx+wd/2,488-h*.35,bx+wd/2,488);X.fill()}
+ X.fillStyle='rgba(255,255,255,.32)';X.font='700 11px '+FONT;X.textAlign='center';X.fillText('BURNER',bx,553);
+ // hose and gauge pipe
+ X.lineCap='round';X.lineJoin='round';
+ for(const[w,c]of[[10,'rgba(255,255,255,.14)'],[5,'rgba(255,255,255,.4)']]){X.strokeStyle=c;X.lineWidth=w;X.beginPath();X.moveTo(120,462);X.lineTo(200,462);X.lineTo(200,400);X.lineTo(L,400);X.stroke();
+  X.beginPath();X.moveTo(150,182);X.lineTo(150,205);X.lineTo(L,205);X.stroke()}
+ // container
+ X.fillStyle=`rgba(${70+185*heat},${150-70*heat},${230-190*heat},.16)`;X.fillRect(L,TOP,R-L,BOT-TOP);
+ X.strokeStyle='rgba(255,255,255,.88)';X.lineWidth=5;X.lineJoin='miter';X.lineCap='butt';
+ X.beginPath();X.moveTo(L,TOP-4);X.lineTo(L,BOT+3);X.lineTo(R+3,BOT+3);X.lineTo(R+3,TOP-4);X.stroke();
+ // movable wall grip
+ X.fillStyle=canDrag?'#ffffff':'rgba(255,255,255,.25)';X.fillRect(R-5,TOP,10,BOT-TOP);
+ X.fillStyle='rgba(0,0,0,.35)';for(let y=TOP+20;y<BOT-10;y+=18)X.fillRect(R-3,y,6,3);
+ if(canDrag){X.fillStyle='#6fa0ff';X.font='700 12px '+FONT;X.fillText('◀ drag ▶',R,BOT+24)}
+ // dimension line
+ X.strokeStyle='rgba(255,255,255,.35)';X.lineWidth=1;X.beginPath();X.moveTo(L,TOP-34);X.lineTo(R,TOP-34);X.moveTo(L,TOP-40);X.lineTo(L,TOP-28);X.moveTo(R,TOP-40);X.lineTo(R,TOP-28);X.stroke();
+ X.fillStyle='#e8e8e8';X.font='700 12px '+FONT;X.fillText('V = '+V.toFixed(2)+' L',(L+R)/2,TOP-42);
+ // particles
+ X.fillStyle=`hsl(${215-205*heat},90%,68%)`;X.beginPath();
+ for(const p of parts){X.moveTo(p.x+3.2,p.y);X.arc(p.x,p.y,3.2,0,6.283)}X.fill();
+ // lid
+ if(!lid.open){rrect(L-8,TOP-14+shake,R-L+16,12,3,'rgba(255,255,255,.7)');X.fillStyle='#ffffff';X.fillRect(L-8,TOP-14+shake,R-L+16,3)}
+ else if(!lid.gone){X.save();X.translate(lid.x,lid.y);X.rotate(lid.r);rrect(-lid.w/2,-6,lid.w,12,3,'rgba(255,255,255,.7)');X.restore();
+  if(parts.length&&P>1){X.fillStyle='rgba(200,215,230,.18)';for(let i=0;i<5;i++)X.fillRect(L+10+Math.random()*(R-L-20),TOP-60-Math.random()*50,3,22)}}
+ // pump
+ X.fillStyle='rgba(255,255,255,.06)';X.fillRect(60,330,60,150);
+ X.strokeStyle='rgba(255,255,255,.6)';X.lineWidth=3;X.strokeRect(60,330,60,150);
+ X.strokeStyle='rgba(255,255,255,.65)';X.lineWidth=6;X.beginPath();X.moveTo(90,hy+6);X.lineTo(90,hy+92);X.stroke();
+ X.fillStyle='rgba(255,255,255,.3)';X.fillRect(63,hy+90,54,12);
+ X.lineWidth=1.5;rrect(36,hy-7,108,14,7,'#ff6b6b','rgba(255,255,255,.55)');
+ X.fillStyle='rgba(255,255,255,.32)';X.font='700 11px '+FONT;X.textAlign='center';X.fillText('PUMP',90,500);
+ X.fillStyle='#ff6b6b';X.font='600 11px '+FONT;X.fillText(canPump?'':'Pump locked',90,518);
+ // gauge
+ const cx=150,cy=120,gm=Math.ceil(lim*1.3),st=nice(gm),a=f=>(150+240*f)*Math.PI/180;
+ X.fillStyle='rgba(255,255,255,.05)';X.beginPath();X.arc(cx,cy,64,0,6.283);X.fill();
+ X.strokeStyle='rgba(255,255,255,.4)';X.lineWidth=3;X.stroke();
+ X.lineWidth=7;X.strokeStyle='#ff6b6b';X.beginPath();X.arc(cx,cy,54,a(lim/gm),a(1));X.stroke();
+ X.strokeStyle='#6fa0ff';X.beginPath();X.arc(cx,cy,54,a(0),a(Math.min(.7*lim,gm)/gm));X.stroke();
+ X.strokeStyle='#c2a8ff';X.beginPath();X.arc(cx,cy,54,a(.7*lim/gm),a(lim/gm));X.stroke();
+ X.fillStyle='rgba(255,255,255,.6)';X.font='600 10px '+FONT;X.lineWidth=1.5;X.strokeStyle='rgba(255,255,255,.5)';
+ for(let v=0;v<=gm;v+=st){const t=a(v/gm);X.beginPath();X.moveTo(cx+Math.cos(t)*46,cy+Math.sin(t)*46);X.lineTo(cx+Math.cos(t)*50,cy+Math.sin(t)*50);X.stroke();X.fillText(v,cx+Math.cos(t)*36,cy+Math.sin(t)*36+3)}
+ const na=a(clamp(pD/gm,0,1.04));X.strokeStyle='#fff';X.lineWidth=3;X.beginPath();X.moveTo(cx,cy);X.lineTo(cx+Math.cos(na)*46,cy+Math.sin(na)*46);X.stroke();
+ X.fillStyle='#fff';X.beginPath();X.arc(cx,cy,5,0,6.283);X.fill();
+ X.fillStyle=near?'#ff6b6b':'#ffffff';X.font='700 14px '+FONT;X.fillText(P.toFixed(2)+' atm',cx,cy+44);
+ X.fillStyle='rgba(255,255,255,.32)';X.font='700 10px '+FONT;X.fillText('PRESSURE',cx,48);
+ // toast
+ if(msgT>0){X.globalAlpha=Math.min(1,msgT);X.fillStyle='#ffc27a';X.font='700 14px '+FONT;X.fillText(msg,W/2+60,28);X.globalAlpha=1;msgT-=.016}
+ else if(near){X.fillStyle='#ff6b6b';X.font='700 14px '+FONT;X.fillText('Warning: pressure close to the lid limit',W/2+60,28)}
+}
+
+function ui(){
+ $('rP').textContent=P.toFixed(2)+' atm';$('rV').textContent=V.toFixed(2)+' L';
+ $('rT').textContent=Tg.toFixed(0)+' K / '+(Tg-273.15).toFixed(0)+' °C';$('rn').textContent=(parts.length*MOL).toFixed(3)+' mol';
+ $('tt').textContent=Tt.toFixed(0)+' K target';$('lt').textContent=lim.toFixed(1)+' atm';
+ const n=parts.length*MOL,iv=NOTES[mode][2]();
+ $('inv').textContent=NOTES[mode][1]+' = '+(n>0?iv[0].toFixed(iv[2]):'–')+' '+iv[1];
+ $('calc').innerHTML=n>0?`nRT/V = ${n.toFixed(3)} × 0.0821 × ${Tg.toFixed(0)} / ${V.toFixed(2)} = <b>${P.toFixed(2)} atm</b>`:'Container is empty. Pump in some gas.';
+ $('lidb').textContent=lid.open?'Replace lid':'Lid is on';
+ // graph
+ const f=GR[$('gs').value],pts=samples.map(f[2]),cur=f[2]({V,P,T:Tg,n});
+ gx.clearRect(0,0,270,170);
+ const mx=Math.max(1e-6,cur[0],...pts.map(p=>p[0]))*1.1,my=Math.max(1e-6,cur[1],...pts.map(p=>p[1]))*1.1;
+ const px=v=>38+v/mx*222,py=v=>140-v/my*130;
+ gx.strokeStyle='rgba(255,255,255,.35)';gx.fillStyle='rgba(255,255,255,.45)';gx.lineWidth=1;gx.font='600 10px '+FONT;
+ gx.beginPath();gx.moveTo(38,8);gx.lineTo(38,140);gx.lineTo(262,140);gx.stroke();
+ gx.textAlign='right';gx.fillText(f[1],110,12);gx.textAlign='center';gx.fillText(f[0],150,165);
+ gx.fillText(mx.toFixed(mx<10?1:0),256,154);gx.textAlign='right';gx.fillText(my.toFixed(my<10?1:0),34,16);
+ gx.strokeStyle='#6fa0ff';gx.lineWidth=1.8;gx.beginPath();pts.forEach((p,i)=>i?gx.lineTo(px(p[0]),py(p[1])):gx.moveTo(px(p[0]),py(p[1])));gx.stroke();
+ gx.fillStyle='#ffffff';gx.beginPath();gx.arc(px(cur[0]),py(cur[1]),4.5,0,6.283);gx.fill();
+}
+
+// interaction
+function pt(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]}
+const onH=(x,y)=>x>30&&x<150&&y>hy-14&&y<hy+14,onW=(x,y)=>Math.abs(x-(L+V*PXL))<16&&y>TOP-10&&y<BOT+10;
+cv.addEventListener('pointerdown',e=>{const[x,y]=pt(e);
+ if(onH(x,y)){drag={k:'h',off:y-hy};if(!canPump)toast('Pump is locked in this experiment')}
+ else if(onW(x,y)){if(canDrag)drag={k:'w'};else toast('Volume is locked in this experiment')}
+ if(drag)cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{const[x,y]=pt(e);
+ if(!drag){cv.style.cursor=onH(x,y)?'ns-resize':onW(x,y)&&canDrag?'ew-resize':'default';return}
+ if(drag.k=='h'){const ny=clamp(y-drag.off,250,330),dy=ny-hy;if(dy>0&&canPump)acc+=dy*.075;hy=ny}
+ else V=clamp((x-L)/PXL,1,6)});
+cv.addEventListener('pointerup',()=>drag=null);cv.addEventListener('pointercancel',()=>drag=null);
+$('fl').oninput=e=>{if(canHeat)Tt=250+6.5*e.target.value};
+$('lim').oninput=e=>lim=+e.target.value;
+$('mode').onchange=e=>setMode(e.target.value);
+$('gc').onclick=()=>samples=[];
+$('rst').onclick=reset;
+$('lidb').onclick=()=>{if(!lid.open)return;if(P>lim){toast('Pressure is still above the limit. Cool the gas or raise the limit first.');return}
+ lid={open:false,x:0,y:0,vx:0,vy:0,r:0,vr:0,w:230,gone:false}};
+
+reset();
+let last=performance.now();
+(function loop(now){const dt=Math.min(.033,(now-last)/1000);last=now;step(dt);draw();ui();requestAnimationFrame(loop)})(last);
+</script>
+</body>
+</html>

@@ -14,6 +14,11 @@ const SIMULATIONS = [
     { title: "Crystal Field Theory", image: "/CFT_COVER.jpg", src: "/sims/chemistry/Cft.html", category: "Chemistry" },
     { title: "De Broglie Hypothesis", image: "/DEBROGLIE_COVER.jpg", src: "/sims/chemistry/DeBroglie.html", category: "Chemistry" },
     { title: "Valence Bond Theory: Orbital Overlap", image: "/VBT_COVER.jpg", src: "/sims/chemistry/Vbt.html", category: "Chemistry" },
+    { title: "Rotational Mechanics", image: "/VBT_COVER.jpg", src: "/sims/physics/rollingmotion.html", category: "Physics" },
+    { title: "YDSE Interference", image: "/VBT_COVER.jpg", src: "/sims/physics/ydse.html", category: "Physics" },
+    { title: "Electromagnetism (Lenz's Law)", image: "/VBT_COVER.jpg", src: "/sims/physics/electromagnetism.html", category: "Physics" },
+    { title: "Ideal Gas Lab", image: "/VBT_COVER.jpg", src: "/sims/chemistry/ideal-gas-lab.html", category: "Chemistry" },
+    { title: "Projectile Motion", image: "/VBT_COVER.jpg", src: "/sims/physics/projectile-arena.html", category: "Physics" }
 ];
 
 /* ─── PAGE-SPECIFIC STYLES ─── */

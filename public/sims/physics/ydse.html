@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Young's Double Slit · OgScience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --text:#e8e8e8; --muted:rgba(255,255,255,.45); --line:rgba(255,255,255,.10); --glass:rgba(255,255,255,.04); --blue:#6fa0ff; --red:#ff6b6b; }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; touch-action:manipulation; }
+  canvas#C { position:fixed; inset:0; display:block; touch-action:none; }
+  .noise { position:fixed; inset:0; pointer-events:none; z-index:5; opacity:.035; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .vignette { position:fixed; inset:0; pointer-events:none; z-index:4; background:radial-gradient(ellipse 85% 75% at 45% 52%, transparent 50%, rgba(0,0,0,.6) 100%); }
+  .glass { background:var(--glass); border:1px solid var(--line); border-radius:20px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+
+  #topbar { position:fixed; top:0; left:0; right:0; height:68px; z-index:20; padding:0 clamp(16px,3vw,40px); display:flex; align-items:center; justify-content:space-between; pointer-events:none; }
+  #topbar > * { pointer-events:auto; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; }
+  .brand .dot { width:32px; height:32px; border-radius:50%; background:#fff; color:#080808; display:grid; place-items:center; font-family:'Syne'; font-weight:800; font-size:14px; }
+  .brand span { font-family:'Syne'; font-weight:700; font-size:16px; letter-spacing:-.01em; }
+  .back { font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.04em; color:var(--text); text-decoration:none; padding:10px 22px; border:1px solid rgba(255,255,255,.2); border-radius:100px; transition:all .3s; }
+  .back:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+
+  #title { position:fixed; left:clamp(16px,3vw,40px); top:88px; z-index:10; max-width:330px; padding:22px 24px; }
+  .tag { display:inline-block; font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:#999; padding:6px 14px; border:1px solid var(--line); border-radius:100px; margin-bottom:14px; }
+  #title h1 { font-family:'Syne'; font-weight:800; font-size:clamp(22px,2.4vw,32px); line-height:1.05; letter-spacing:-.025em; margin-bottom:10px; }
+  .grad { background:linear-gradient(135deg,#fff 0%,#8a8a8a 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  #title p { font-size:13px; line-height:1.7; color:var(--muted); }
+  #title p b { color:#fff; font-weight:500; }
+  .eqn { margin-top:14px; padding:10px 14px; border-radius:12px; background:rgba(111,160,255,.08); border:1px solid rgba(111,160,255,.2); font-family:'Syne'; font-weight:700; font-size:13px; color:var(--blue); text-align:center; }
+  .hint { margin-top:12px; font-size:11px; color:rgba(255,255,255,.3); letter-spacing:.04em; }
+
+  #panel { position:fixed; right:clamp(16px,3vw,40px); top:88px; width:330px; z-index:10; padding:22px; max-height:calc(100% - 390px); overflow-y:auto; }
+  .cap { font-family:'Syne'; font-weight:700; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 4px 2px; }
+  .cap:not(:first-child) { margin-top:20px; padding-top:18px; border-top:1px solid var(--line); }
+  .sl { margin:16px 0 6px; }
+  .sl .top { display:flex; justify-content:space-between; align-items:center; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .sl .top b { font-family:'Syne'; color:#fff; letter-spacing:.02em; text-transform:none; font-size:13px; display:flex; align-items:center; gap:8px; }
+  #swatch { width:12px; height:12px; border-radius:50%; display:inline-block; }
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:2px; background:rgba(255,255,255,.2); border-radius:2px; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 0 14px rgba(255,255,255,.55); border:none; cursor:pointer; }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:none; box-shadow:0 0 14px rgba(255,255,255,.55); }
+  #lamSl { background:linear-gradient(90deg,#7b2cff,#2f5bff,#00c8ff,#00e07a,#c8ff00,#ffb400,#ff4a1a,#c00); height:3px; }
+  .row { display:flex; align-items:center; gap:12px; padding:9px 2px; font-size:13px; cursor:pointer; }
+  .row span.l { flex:1; color:#ddd; }
+  .tg { -webkit-appearance:none; appearance:none; width:40px; height:22px; border-radius:22px; background:rgba(255,255,255,.12); position:relative; cursor:pointer; transition:background .25s; flex:none; }
+  .tg::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .25s cubic-bezier(.16,1,.3,1); }
+  .tg:checked { background:var(--blue); } .tg:checked::after { transform:translateX(18px); }
+
+  #stats { position:fixed; right:clamp(16px,3vw,40px); bottom:96px; z-index:10; width:280px; padding:18px 20px; }
+  #verdict { display:inline-block; font-size:12px; font-weight:500; letter-spacing:.03em; padding:7px 14px; border-radius:100px; border:1px solid; margin-bottom:14px; transition:all .3s; }
+  #verdict.ok { color:var(--blue); border-color:rgba(111,160,255,.4); background:rgba(111,160,255,.08); }
+  #verdict.bad { color:var(--red); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.08); }
+  #verdict.mid { color:#bbb; border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.04); }
+  .stat { display:flex; justify-content:space-between; font-size:12px; margin-bottom:9px; } .stat:last-child { margin-bottom:0; }
+  .stat span:first-child { color:var(--muted); } .stat span:last-child { font-family:'Syne'; font-weight:700; color:#fff; }
+
+  #bar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:15; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:100px; max-width:calc(100% - 24px); }
+  .pill { padding:11px 22px; border-radius:100px; border:1px solid rgba(255,255,255,.2); background:transparent; color:var(--text); font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.03em; cursor:pointer; transition:all .25s; white-space:nowrap; }
+  .pill:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+  .pill.primary { background:#fff; color:#080808; border-color:#fff; } .pill.primary:hover { box-shadow:0 8px 28px rgba(255,255,255,.2); }
+  .pill.on { background:rgba(111,160,255,.14); border-color:var(--blue); color:var(--blue); }
+
+  @media (max-width:860px) {
+    #title { display:none; }
+    #stats { top:76px; bottom:auto; left:12px; right:12px; width:auto; padding:12px 16px; }
+    #verdict { margin-bottom:12px; }
+    #stats .stats { display:flex; gap:12px; }
+    #stats .stat { margin:0; gap:8px; }
+    #stats .stat span:first-child { display:none; }
+    #panel { right:12px; left:12px; width:auto; top:auto; bottom:84px; max-height:min(38vh, calc(100% - 280px)); padding:16px; }
+    .pill { padding:10px 16px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="C"></canvas>
+<div class="vignette"></div><div class="noise"></div>
+
+<div id="topbar">
+  <a class="brand" href="/"><div class="dot">O</div><span>OgScience</span></a>
+  <a class="back" href="/simulations">← Simulations</a>
+</div>
+
+
+<div id="panel" class="glass">
+  <div class="cap">Apparatus</div>
+  <div class="sl"><div class="top"><span>Wavelength λ</span><b><i id="swatch"></i><span id="lamVal">550 nm</span></b></div><input type="range" id="lamSl" min="400" max="700" step="5" value="550"></div>
+  <div class="sl"><div class="top"><span>Slit separation d</span><b id="dVal">0.30 mm</b></div><input type="range" id="dSl" min="0.1" max="1" step="0.01" value="0.3"></div>
+  <div class="sl"><div class="top"><span>Screen distance D</span><b id="DVal">1.5 m</b></div><input type="range" id="DSl" min="0.5" max="3" step="0.1" value="1.5"></div>
+
+  <div class="cap">Display</div>
+  <label class="row"><span class="l">Incoming plane wave</span><input type="checkbox" class="tg" id="tPlane" checked></label>
+  <label class="row"><span class="l">Intensity graph I(y)</span><input type="checkbox" class="tg" id="tGraph" checked></label>
+  <label class="row"><span class="l">Path-difference probe</span><input type="checkbox" class="tg" id="tProbe" checked></label>
+</div>
+
+<div id="stats" class="glass">
+  <div id="verdict" class="mid"></div>
+  <div class="stats">
+    <div class="stat"><span>Fringe width β</span><span id="rBeta"></span></div>
+    <div class="stat"><span>Probe height y</span><span id="rY"></span></div>
+    <div class="stat"><span>Path difference Δ</span><span id="rDelta"></span></div>
+  </div>
+</div>
+
+<div id="bar" class="glass">
+  <button class="pill primary" id="playBtn">⏸ Pause</button>
+  <button class="pill" id="slowBtn">Slow-mo</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('C'), ct = cv.getContext('2d'), TAU = Math.PI * 2;
+
+/* ───────── model ─────────
+   Sliders use real units. The tank is a scaled schematic:
+     λ_px = λ(nm)/20    d_px = d(mm)·200    D_px = D(m)·200
+   → fringe width on screen = 50 px per mm, so β = λD/d holds exactly. */
+const WORLD_W = 820, WORLD_H = 420, BX = 60, WAVE_SPEED = 60, CELL = 3, PX_PER_MM = 50;
+let lam = 550, dmm = 0.3, Dm = 1.5, playing = true, slow = false, t = 0, last = performance.now();
+let probeY = 0, dragging = false;
+const opt = { plane: true, graph: true, probe: true };
+const P = () => ({ l: lam / 20, d: dmm * 200, D: Dm * 200 });
+
+function intensity(y, p) {
+  const r1 = Math.hypot(p.D, y + p.d / 2), r2 = Math.hypot(p.D, y - p.d / 2);
+  return Math.pow(Math.cos(Math.PI * Math.abs(r1 - r2) / p.l), 2);
+}
+function wl2rgb(w) {
+  let r = 0, g = 0, b = 0;
+  if (w < 440) { r = -(w - 440) / 60; b = 1; } else if (w < 490) { g = (w - 440) / 50; b = 1; } else if (w < 510) { g = 1; b = -(w - 510) / 20; }
+  else if (w < 580) { r = (w - 510) / 70; g = 1; } else if (w < 645) { r = 1; g = -(w - 645) / 65; } else { r = 1; }
+  const f = w < 420 ? .3 + .7 * (w - 380) / 40 : w > 700 ? .3 + .7 * (780 - w) / 80 : 1;
+  return [Math.round(255 * Math.pow(r * f, .8)), Math.round(255 * Math.pow(g * f, .8)), Math.round(255 * Math.pow(b * f, .8))];
+}
+
+/* ───────── layout ───────── */
+let W, H, dpr, S, OX, OY, wide;
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; wide = W > 860;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ct.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const top = wide ? 84 : 150, bot = wide ? 96 : 330, availW = wide ? W - 380 : W, availH = H - top - bot;
+  S = Math.min((availW - 24) / WORLD_W, availH / WORLD_H);
+  OX = (availW - WORLD_W * S) / 2; OY = top + availH / 2;          // OY = vertical centre of the tank
+}
+
+/* ───────── helpers ───────── */
+const stars = Array.from({ length: 110 }, (_, i) => ({ x: Math.sin(i * 137.5) * .5 + .5, y: Math.cos(i * 97.3) * .5 + .5, r: .4 + (i % 3) * .35, a: .1 + (i % 5) * .05 }));
+function glow(x, y, r, rgb, a) { const g = ct.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ct.fillStyle = g; ct.beginPath(); ct.arc(x, y, r, 0, TAU); ct.fill(); }
+function label(s, x, y, size, col, align = 'left') { ct.font = `600 ${size}px Syne, sans-serif`; ct.fillStyle = col; ct.textAlign = align; ct.textBaseline = 'middle'; ct.fillText(s, x, y); }
+
+/* low-resolution wave field, scaled up for a smooth look */
+const FW = Math.ceil(WORLD_W / CELL), FH = Math.ceil(WORLD_H / CELL);
+const off = document.createElement('canvas'); off.width = FW; off.height = FH;
+const octx = off.getContext('2d'), img = octx.createImageData(FW, FH);
+function renderField(p) {
+  const k = TAU / p.l, om = k * WAVE_SPEED, sx = BX + p.D, data = img.data, y1 = -p.d / 2, y2 = p.d / 2;
+  for (let j = 0; j < FH; j++) {
+    const wy = j * CELL + CELL / 2 - WORLD_H / 2;
+    for (let i = 0; i < FW; i++) {
+      const wx = i * CELL + CELL / 2, idx = (j * FW + i) * 4;
+      if (wx <= BX + 2 || wx >= sx) { data[idx + 3] = 0; continue; }
+      const dx = wx - BX, r1 = Math.hypot(dx, wy - y1), r2 = Math.hypot(dx, wy - y2);
+      const v = Math.sin(k * r1 - om * t) / Math.sqrt(1 + r1 / 45) + Math.sin(k * r2 - om * t) / Math.sqrt(1 + r2 / 45);
+      if (v > 0) { data[idx] = 255; data[idx + 1] = 255; data[idx + 2] = 255; data[idx + 3] = Math.min(255, v * 0.85 * 255 * .9); }
+      else { data[idx] = 111; data[idx + 1] = 160; data[idx + 2] = 255; data[idx + 3] = Math.min(255, -v * 0.85 * 255 * .75); }
+    }
+  }
+  octx.putImageData(img, 0, 0);
+}
+
+/* ───────── draw ───────── */
+function draw() {
+  const p = P(), sx = BX + p.D, col = wl2rgb(lam), colS = col.join(',');
+  ct.fillStyle = '#080808'; ct.fillRect(0, 0, W, H);
+  glow(OX + (BX + p.D * .5) * S, OY, 420 * S, '70,100,170', .08);
+  stars.forEach(s => { ct.fillStyle = `rgba(255,255,255,${s.a})`; ct.beginPath(); ct.arc(s.x * W, s.y * H, s.r, 0, TAU); ct.fill(); });
+
+  ct.save(); ct.translate(OX, OY); ct.scale(S, S);
+
+  // tank frame
+  ct.fillStyle = 'rgba(255,255,255,.018)'; ct.strokeStyle = 'rgba(255,255,255,.07)'; ct.lineWidth = 1 / S;
+  ct.beginPath(); ct.roundRect ? ct.roundRect(0, -WORLD_H / 2, WORLD_W, WORLD_H, 18) : ct.rect(0, -WORLD_H / 2, WORLD_W, WORLD_H); ct.fill(); ct.stroke();
+  label('RIPPLE TANK · TOP VIEW (schematic)', 16, -WORLD_H / 2 + 18, 10, 'rgba(255,255,255,.28)');
+
+  // incoming plane wave (left of the barrier)
+  if (opt.plane) {
+    const k = p.l, off0 = (t * WAVE_SPEED) % k;
+    for (let x = BX - off0; x > 8; x -= k) { const a = Math.max(0, Math.min(1, (BX - x) / 40)) * .22 + .04; ct.strokeStyle = `rgba(255,255,255,${a})`; ct.lineWidth = 1.4; ct.beginPath(); ct.moveTo(x, -WORLD_H / 2 + 24); ct.lineTo(x, WORLD_H / 2 - 24); ct.stroke(); }
+  }
+
+  // interference field
+  renderField(p); ct.imageSmoothingEnabled = true; ct.drawImage(off, 0, -WORLD_H / 2, FW * CELL, FH * CELL);
+
+  // barrier with two slits
+  const gap = 7, d2 = p.d / 2;
+  ct.save(); ct.shadowColor = 'rgba(111,160,255,.5)'; ct.shadowBlur = 14; ct.strokeStyle = 'rgba(255,255,255,.88)'; ct.lineWidth = 6; ct.lineCap = 'round';
+  [[-WORLD_H / 2 + 3, -d2 - gap], [-d2 + gap, d2 - gap], [d2 + gap, WORLD_H / 2 - 3]].forEach(([a, b]) => { if (b > a) { ct.beginPath(); ct.moveTo(BX, a); ct.lineTo(BX, b); ct.stroke(); } });
+  ct.restore();
+  [-d2, d2].forEach(y => glow(BX, y, 22, '111,160,255', .5));
+  label('S₁', BX - 12, -d2, 11, 'rgba(255,255,255,.6)', 'right'); label('S₂', BX - 12, d2, 11, 'rgba(255,255,255,.6)', 'right');
+
+  // screen: fringe strip coloured by wavelength
+  ct.strokeStyle = 'rgba(255,255,255,.35)'; ct.lineWidth = 3; ct.beginPath(); ct.moveTo(sx, -WORLD_H / 2 + 2); ct.lineTo(sx, WORLD_H / 2 - 2); ct.stroke();
+  for (let y = -WORLD_H / 2 + 2; y < WORLD_H / 2 - 2; y += 1.5) { ct.fillStyle = `rgba(${colS},${(intensity(y, p) * .95).toFixed(3)})`; ct.fillRect(sx + 3, y, 11, 1.7); }
+  label('SCREEN', sx + 8, -WORLD_H / 2 + 14, 9, 'rgba(255,255,255,.35)', 'center');
+
+  // intensity graph attached to the screen
+  const gx = sx + 20, gw = 96;
+  if (opt.graph) {
+    ct.strokeStyle = 'rgba(255,255,255,.18)'; ct.lineWidth = 1; ct.beginPath(); ct.moveTo(gx, -WORLD_H / 2 + 24); ct.lineTo(gx, WORLD_H / 2 - 24); ct.stroke();
+    for (let m = -4; m <= 4; m++) { const y = m * PX_PER_MM; ct.strokeStyle = 'rgba(255,255,255,.18)'; ct.beginPath(); ct.moveTo(gx, y); ct.lineTo(gx - 4, y); ct.stroke(); if (m) label(m + '', gx + gw + 10, y, 9, 'rgba(255,255,255,.28)'); }
+    label('I(y)', gx + gw / 2, -WORLD_H / 2 + 12, 10, 'rgba(255,255,255,.4)', 'center'); label('mm', gx + gw + 10, -WORLD_H / 2 + 36, 9, 'rgba(255,255,255,.28)');
+    ct.beginPath(); ct.moveTo(gx, -WORLD_H / 2 + 24);
+    for (let y = -WORLD_H / 2 + 24; y <= WORLD_H / 2 - 24; y += 1) ct.lineTo(gx + intensity(y, p) * gw, y);
+    ct.lineTo(gx, WORLD_H / 2 - 24); ct.closePath(); ct.fillStyle = `rgba(${colS},.18)`; ct.fill();
+    ct.beginPath(); for (let y = -WORLD_H / 2 + 24, f = true; y <= WORLD_H / 2 - 24; y += 1, f = false) { const x = gx + intensity(y, p) * gw; f ? ct.moveTo(x, y) : ct.lineTo(x, y); }
+    ct.strokeStyle = `rgb(${colS})`; ct.lineWidth = 2; ct.stroke();
+  }
+
+  // central axis
+  ct.setLineDash([5, 7]); ct.strokeStyle = 'rgba(255,255,255,.22)'; ct.lineWidth = 1; ct.beginPath(); ct.moveTo(BX, 0); ct.lineTo(sx, 0); ct.stroke(); ct.setLineDash([]);
+
+  // probe: the two paths from the slits to a point on the screen
+  if (opt.probe) {
+    ct.setLineDash([4, 5]); ct.lineWidth = 1.4;
+    ct.strokeStyle = 'rgba(255,255,255,.7)'; ct.beginPath(); ct.moveTo(BX, -d2); ct.lineTo(sx, probeY); ct.stroke();
+    ct.strokeStyle = 'rgba(111,160,255,.9)'; ct.beginPath(); ct.moveTo(BX, d2); ct.lineTo(sx, probeY); ct.stroke(); ct.setLineDash([]);
+    glow(sx + 8, probeY, 20, '255,255,255', .4);
+    ct.beginPath(); ct.arc(sx + 8, probeY, 4.5, 0, TAU); ct.fillStyle = '#fff'; ct.fill();
+    label('P', sx - 10, probeY - 12, 11, '#fff', 'right');
+  }
+  ct.restore();
+}
+
+/* ───────── readout ───────── */
+function updateReadout() {
+  const p = P(), beta = lam * Dm / dmm * 1e-3;
+  $('lamVal').textContent = lam + ' nm'; $('dVal').textContent = dmm.toFixed(2) + ' mm'; $('DVal').textContent = Dm.toFixed(1) + ' m';
+  $('swatch').style.background = `rgb(${wl2rgb(lam).join(',')})`; $('swatch').style.boxShadow = `0 0 10px rgb(${wl2rgb(lam).join(',')})`;
+  $('rBeta').textContent = beta.toFixed(2) + ' mm';
+  const r1 = Math.hypot(p.D, probeY + p.d / 2), r2 = Math.hypot(p.D, probeY - p.d / 2), ratio = Math.abs(r1 - r2) / p.l, near = Math.round(ratio), v = $('verdict');
+  $('rY').textContent = (probeY / PX_PER_MM).toFixed(2) + ' mm'; $('rDelta').textContent = ratio.toFixed(2) + ' λ';
+  const dB = Math.abs(ratio - near), dD = Math.abs(ratio - (Math.floor(ratio) + .5));
+  if (dB < 0.08) { v.className = 'ok'; v.textContent = `✓ Bright fringe · constructive (n = ${near})`; }
+  else if (dD < 0.08) { v.className = 'bad'; v.textContent = `✗ Dark fringe · destructive (n = ${Math.floor(ratio)} + ½)`; }
+  else { v.className = 'mid'; v.textContent = 'Partial interference'; }
+}
+
+/* ───────── events ───────── */
+$('lamSl').oninput = e => { lam = +e.target.value; updateReadout(); };
+$('dSl').oninput = e => { dmm = +e.target.value; updateReadout(); };
+$('DSl').oninput = e => { Dm = +e.target.value; updateReadout(); };
+[['tPlane', 'plane'], ['tGraph', 'graph'], ['tProbe', 'probe']].forEach(([id, k]) => $(id).onchange = e => { opt[k] = e.target.checked; });
+$('playBtn').onclick = () => { playing = !playing; $('playBtn').textContent = playing ? '⏸ Pause' : '▶ Play'; };
+$('slowBtn').onclick = () => { slow = !slow; $('slowBtn').classList.toggle('on', slow); };
+function setProbe(e) { const lim = WORLD_H / 2 - 6; probeY = Math.max(-lim, Math.min(lim, (e.clientY - OY) / S)); updateReadout(); }
+cv.addEventListener('pointerdown', e => { dragging = true; setProbe(e); });
+addEventListener('pointermove', e => { if (dragging) setProbe(e); });
+addEventListener('pointerup', () => dragging = false);
+addEventListener('resize', resize);
+
+/* ───────── loop ───────── */
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05) * (slow ? 0.25 : 1); last = now;
+  if (playing) t += dt;
+  draw(); requestAnimationFrame(frame);
+}
+resize();
+probeY = Math.min(WORLD_H / 2 - 6, (lam * Dm / dmm * 1e-3) * PX_PER_MM);   // start on the first bright fringe
+updateReadout(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

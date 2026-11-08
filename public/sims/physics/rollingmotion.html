@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rolling Motion · OgScience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --text:#e8e8e8; --muted:rgba(255,255,255,.45); --line:rgba(255,255,255,.10); --glass:rgba(255,255,255,.04); --blue:#6fa0ff; --red:#ff6b6b; --violet:#c2a8ff; }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; touch-action:manipulation; }
+  canvas#C { position:fixed; inset:0; display:block; }
+  .noise { position:fixed; inset:0; pointer-events:none; z-index:5; opacity:.035; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .vignette { position:fixed; inset:0; pointer-events:none; z-index:4; background:radial-gradient(ellipse 80% 70% at 42% 55%, transparent 45%, rgba(0,0,0,.6) 100%); }
+  .glass { background:var(--glass); border:1px solid var(--line); border-radius:20px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+
+  #topbar { position:fixed; top:0; left:0; right:0; height:68px; z-index:20; padding:0 clamp(16px,3vw,40px); display:flex; align-items:center; justify-content:space-between; pointer-events:none; }
+  #topbar > * { pointer-events:auto; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; }
+  .brand .dot { width:32px; height:32px; border-radius:50%; background:#fff; color:#080808; display:grid; place-items:center; font-family:'Syne'; font-weight:800; font-size:14px; }
+  .brand span { font-family:'Syne'; font-weight:700; font-size:16px; letter-spacing:-.01em; }
+  .back { font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.04em; color:var(--text); text-decoration:none; padding:10px 22px; border:1px solid rgba(255,255,255,.2); border-radius:100px; transition:all .3s; }
+  .back:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+
+  #title { position:fixed; left:clamp(16px,3vw,40px); top:88px; z-index:10; max-width:330px; padding:22px 24px; }
+  .tag { display:inline-block; font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:#999; padding:6px 14px; border:1px solid var(--line); border-radius:100px; margin-bottom:14px; }
+  #title h1 { font-family:'Syne'; font-weight:800; font-size:clamp(22px,2.4vw,32px); line-height:1.05; letter-spacing:-.025em; margin-bottom:10px; }
+  .grad { background:linear-gradient(135deg,#fff 0%,#8a8a8a 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  #title p { font-size:13px; line-height:1.7; color:var(--muted); }
+  #title p b { color:#fff; font-weight:500; }
+  #title .eqn { margin-top:14px; padding:10px 14px; border-radius:12px; background:rgba(111,160,255,.08); border:1px solid rgba(111,160,255,.2); font-family:'Syne'; font-weight:700; font-size:13px; color:var(--blue); text-align:center; }
+
+  #panel { position:fixed; right:clamp(16px,3vw,40px); top:88px; width:330px; z-index:10; padding:22px; max-height:calc(100% - 190px); overflow-y:auto; }
+  .cap { font-family:'Syne'; font-weight:700; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0 0 12px 2px; }
+  .cap:not(:first-child) { margin-top:20px; padding-top:18px; border-top:1px solid var(--line); }
+  .row { display:flex; align-items:center; gap:12px; padding:9px 2px; font-size:13px; cursor:pointer; }
+  .row .sw { width:10px; height:10px; border-radius:50%; background:var(--c); box-shadow:0 0 10px var(--c); flex:none; }
+  .row span.l { flex:1; color:#ddd; }
+  .row small { display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+  .tg { -webkit-appearance:none; appearance:none; width:40px; height:22px; border-radius:22px; background:rgba(255,255,255,.12); position:relative; cursor:pointer; transition:background .25s; flex:none; }
+  .tg::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .25s cubic-bezier(.16,1,.3,1); }
+  .tg:checked { background:var(--blue); } .tg:checked::after { transform:translateX(18px); }
+  .sl { margin:14px 0 6px; }
+  .sl .top { display:flex; justify-content:space-between; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+  .sl .top b { font-family:'Syne'; color:#fff; letter-spacing:.02em; text-transform:none; font-size:13px; }
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:2px; background:rgba(255,255,255,.2); border-radius:2px; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 0 14px rgba(255,255,255,.55); border:none; cursor:pointer; }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:none; box-shadow:0 0 14px rgba(255,255,255,.55); }
+  input[type=range]:disabled { opacity:.35; } input[type=range]:disabled::-webkit-slider-thumb { box-shadow:none; cursor:not-allowed; }
+  #lockNote { font-size:11px; color:var(--blue); margin-top:8px; min-height:14px; }
+
+  #read { position:fixed; left:clamp(16px,3vw,40px); bottom:96px; z-index:10; width:290px; padding:18px 20px; }
+  #status { display:inline-block; font-size:12px; font-weight:500; letter-spacing:.03em; padding:7px 14px; border-radius:100px; border:1px solid; margin-bottom:14px; transition:all .3s; }
+  #status.ok { color:var(--blue); border-color:rgba(111,160,255,.4); background:rgba(111,160,255,.08); }
+  #status.bad { color:var(--red); border-color:rgba(255,107,107,.45); background:rgba(255,107,107,.08); }
+  .stat { display:flex; justify-content:space-between; font-size:12px; margin-bottom:9px; } .stat:last-child { margin-bottom:0; }
+  .stat span:first-child { color:var(--muted); } .stat span:last-child { font-family:'Syne'; font-weight:700; color:#fff; }
+
+  #bar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:15; display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:100px; max-width:calc(100% - 24px); }
+  .pill { padding:11px 22px; border-radius:100px; border:1px solid rgba(255,255,255,.2); background:transparent; color:var(--text); font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.03em; cursor:pointer; transition:all .25s; white-space:nowrap; }
+  .pill:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+  .pill.primary { background:#fff; color:#080808; border-color:#fff; } .pill.primary:hover { box-shadow:0 8px 28px rgba(255,255,255,.2); }
+  .pill.on { background:rgba(111,160,255,.14); border-color:var(--blue); color:var(--blue); }
+
+  @media (max-width:860px) {
+    #title { display:none; }
+    #read { top:76px; bottom:auto; left:12px; right:12px; width:auto; padding:12px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    #status { margin:0; } .stat { margin:0; gap:8px; } .stat span:first-child { display:none; }
+    #read .stats { display:flex; gap:12px; margin-left:auto; }
+    #panel { right:12px; left:12px; width:auto; top:auto; bottom:84px; max-height:38vh; padding:16px; }
+    .pill { padding:10px 16px; font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="C"></canvas>
+<div class="vignette"></div><div class="noise"></div>
+
+<div id="topbar">
+  <a class="brand" href="/"><div class="dot">O</div><span>OgScience</span></a>
+  <a class="back" href="/simulations">← Simulations</a>
+</div>
+
+
+<div id="panel" class="glass">
+  <div class="cap">Motion</div>
+  <label class="row"><span class="l">Pure rolling lock<small>Forces V<sub>cm</sub> = ωR</small></span><input type="checkbox" class="tg" id="lock" checked></label>
+  <div class="sl"><div class="top"><span>Centre velocity V<sub>cm</sub></span><b><span id="vVal">50</span> px/s</b></div><input type="range" id="vSl" min="0" max="150" step="1" value="50"></div>
+  <div class="sl"><div class="top"><span>Angular velocity ω</span><b><span id="wVal">1.00</span> rad/s</b></div><input type="range" id="wSl" min="0" max="3" step="0.05" value="1" disabled><div id="lockNote">🔒 Locked to V<sub>cm</sub> / R</div></div>
+
+  <div class="cap">Vectors</div>
+  <label class="row"><i class="sw" style="--c:#6fa0ff"></i><span class="l">Translational V<sub>cm</sub></span><input type="checkbox" class="tg" id="sT" checked></label>
+  <label class="row"><i class="sw" style="--c:#ffffff"></i><span class="l">Rotational ω × r</span><input type="checkbox" class="tg" id="sR" checked></label>
+  <label class="row"><i class="sw" style="--c:#c2a8ff"></i><span class="l">Net velocity V<sub>net</sub></span><input type="checkbox" class="tg" id="sN" checked></label>
+  <label class="row"><i class="sw" style="--c:#8a8a8a"></i><span class="l">Trace point path (cycloid)</span><input type="checkbox" class="tg" id="sC"></label>
+</div>
+
+<div id="read" class="glass">
+  <div id="status" class="ok"></div>
+  <div class="stats">
+    <div class="stat"><span>Rim speed ωR</span><span id="rRim"></span></div>
+    <div class="stat"><span>Top point</span><span id="rTop"></span></div>
+    <div class="stat"><span>Contact point</span><span id="rCon"></span></div>
+  </div>
+</div>
+
+<div id="bar" class="glass">
+  <button class="pill primary" id="playBtn">⏸ Pause</button>
+  <button class="pill" id="resetBtn">↺ Reset</button>
+  <button class="pill" id="slowBtn">Slow-mo</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('C'), ct = cv.getContext('2d'), R = 50, TAU = Math.PI * 2;   // R in world units (px)
+
+/* ───────── physics state ───────── */
+let vCm = 50, omega = 1, locked = true, playing = true, slow = false;
+let xCm = 0, ang = 0, trace = [], last = performance.now();
+const show = { t: true, r: true, n: true, c: false };
+
+/* ───────── layout ───────── */
+let W, H, dpr, S, cx, gY, wide;
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2); W = innerWidth; H = innerHeight; wide = W > 860;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px'; ct.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const top = wide ? 80 : 150, bot = wide ? 100 : 330, availW = wide ? W - 390 : W, availH = H - top - bot;
+  const Rpx = Math.max(34, Math.min(availW * 0.16, availH * 0.30));
+  S = Rpx / R; cx = availW * (wide ? 0.46 : 0.42); gY = top + availH * 0.66;
+}
+
+/* ───────── helpers ───────── */
+const stars = Array.from({ length: 120 }, (_, i) => ({ x: Math.sin(i * 137.5) * .5 + .5, y: Math.cos(i * 97.3) * .5 + .5, r: .4 + (i % 3) * .35, a: .12 + (i % 5) * .05 }));
+function glow(x, y, r, rgb, a) { const g = ct.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ct.fillStyle = g; ct.beginPath(); ct.arc(x, y, r, 0, TAU); ct.fill(); }
+function text(s, x, y, size, col, align = 'center') { ct.font = `600 ${size}px Syne, sans-serif`; ct.fillStyle = col; ct.textAlign = align; ct.textBaseline = 'middle'; ct.fillText(s, x, y); }
+function arrow(x, y, vx, vy, col) {
+  const k = S * 0.36, ex = x + vx * k, ey = y + vy * k, len = Math.hypot(ex - x, ey - y); if (len < 3) return;
+  ct.save(); ct.shadowColor = col; ct.shadowBlur = 10; ct.strokeStyle = col; ct.fillStyle = col; ct.lineWidth = 2.2; ct.lineCap = 'round';
+  ct.beginPath(); ct.moveTo(x, y); ct.lineTo(ex, ey); ct.stroke();
+  const a = Math.atan2(ey - y, ex - x), h = Math.min(11, len * .5);
+  ct.beginPath(); ct.moveTo(ex, ey); ct.lineTo(ex - h * Math.cos(a - .45), ey - h * Math.sin(a - .45)); ct.lineTo(ex - h * Math.cos(a + .45), ey - h * Math.sin(a + .45)); ct.closePath(); ct.fill(); ct.restore();
+}
+// velocity of the material point at angle th on the rim (y points down, positive angle = clockwise)
+function velAt(th, rMod) { const m = omega * R * rMod; return { tx: vCm, ty: 0, rx: -m * Math.sin(th), ry: m * Math.cos(th) }; }
+function vectors(px, py, th, rMod, withRot = true) {
+  const v = velAt(th, rMod);
+  if (show.t) arrow(px, py, v.tx, v.ty, '#6fa0ff');
+  if (show.r && withRot) arrow(px, py, v.rx, v.ry, '#ffffff');
+  if (show.n) arrow(px, py, v.tx + v.rx, v.ty + v.ry, '#c2a8ff');
+}
+
+/* ───────── drawing ───────── */
+function draw(t) {
+  ct.fillStyle = '#080808'; ct.fillRect(0, 0, W, H);
+  glow(cx, gY - R * S, R * S * 5, '70,100,170', .10);
+  stars.forEach(s => { ct.fillStyle = `rgba(255,255,255,${s.a})`; ct.beginPath(); ct.arc(s.x * W, s.y * (gY - 10), s.r, 0, TAU); ct.fill(); });
+
+  /* ground (scrolls past the wheel) */
+  const g = ct.createLinearGradient(0, gY, 0, H); g.addColorStop(0, 'rgba(255,255,255,.07)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  ct.fillStyle = g; ct.fillRect(0, gY, W, H - gY);
+  ct.strokeStyle = 'rgba(255,255,255,.55)'; ct.lineWidth = 2; ct.beginPath(); ct.moveTo(0, gY); ct.lineTo(W, gY); ct.stroke();
+  const tick = 40, first = Math.floor((xCm - cx / S) / tick) - 1, count = Math.ceil(W / S / tick) + 3;
+  for (let i = 0; i < count; i++) { const wx = (first + i) * tick, sx = cx + (wx - xCm) * S, major = ((first + i) % 5) === 0;
+    ct.strokeStyle = `rgba(255,255,255,${major ? .3 : .12})`; ct.lineWidth = 1; ct.beginPath(); ct.moveTo(sx, gY); ct.lineTo(sx - 10 * S * .3, gY + (major ? 16 : 9)); ct.stroke(); }
+
+  const cy = gY - R * S;
+
+  /* cycloid trace of the tracked rim point */
+  if (show.c && trace.length > 1) {
+    ct.lineWidth = 2; ct.lineJoin = 'round';
+    for (let i = 1; i < trace.length; i++) {
+      const a = trace[i - 1], b = trace[i], f = i / trace.length;
+      ct.strokeStyle = `rgba(194,168,255,${f * .85})`; ct.beginPath();
+      ct.moveTo(cx + (a.x - xCm) * S, cy + a.y * S); ct.lineTo(cx + (b.x - xCm) * S, cy + b.y * S); ct.stroke();
+    }
+  }
+
+  /* wheel */
+  glow(cx, cy, R * S * 1.5, '111,160,255', .10);
+  ct.save(); ct.shadowColor = 'rgba(111,160,255,.6)'; ct.shadowBlur = 22; ct.strokeStyle = 'rgba(255,255,255,.92)'; ct.lineWidth = 2.6;
+  ct.beginPath(); ct.arc(cx, cy, R * S, 0, TAU); ct.stroke(); ct.restore();
+  ct.strokeStyle = 'rgba(255,255,255,.12)'; ct.lineWidth = 1; ct.beginPath(); ct.arc(cx, cy, R * S * .82, 0, TAU); ct.stroke();
+  for (let i = 0; i < 36; i++) { const a = ang + i * TAU / 36, r1 = R * S * .9, r2 = R * S; ct.strokeStyle = 'rgba(255,255,255,.22)'; ct.beginPath(); ct.moveTo(cx + r1 * Math.cos(a), cy + r1 * Math.sin(a)); ct.lineTo(cx + r2 * Math.cos(a), cy + r2 * Math.sin(a)); ct.stroke(); }
+  for (let i = 0; i < 6; i++) { const a = ang + i * TAU / 6; ct.strokeStyle = 'rgba(255,255,255,.18)'; ct.lineWidth = 1.4; ct.beginPath(); ct.moveTo(cx, cy); ct.lineTo(cx + R * S * .82 * Math.cos(a), cy + R * S * .82 * Math.sin(a)); ct.stroke(); }
+
+  /* the five tracked points: centre + top / right / bottom / left (they rotate with the wheel) */
+  const pts = [{ l: 'C', m: 0, th: 0 }, { l: 'T', m: 1, th: ang - Math.PI / 2 }, { l: 'R', m: 1, th: ang }, { l: 'B', m: 1, th: ang + Math.PI / 2 }, { l: 'L', m: 1, th: ang + Math.PI }];
+  pts.forEach(p => {
+    const px = cx + R * S * p.m * Math.cos(p.th), py = cy + R * S * p.m * Math.sin(p.th);
+    vectors(px, py, p.m === 0 ? 0 : p.th, p.m, p.m !== 0);
+    glow(px, py, 14, '255,255,255', .25); ct.beginPath(); ct.arc(px, py, 4.5, 0, TAU); ct.fillStyle = '#fff'; ct.fill();
+    const lo = p.m === 0 ? 0 : 1; if (lo) text(p.l, px + 16 * Math.cos(p.th), py + 16 * Math.sin(p.th), 11, 'rgba(255,255,255,.55)'); else text('C', px, py - 16, 11, 'rgba(255,255,255,.55)');
+  });
+
+  /* contact point (the material point touching the ground right now) */
+  const slip = vCm - omega * R, rest = Math.abs(slip) < 0.5;
+  const pulse = 1 + Math.sin(t / 260) * .12, col = rest ? '111,160,255' : '255,107,107';
+  glow(cx, gY, 38 * pulse, col, rest ? .35 : .45);
+  ct.strokeStyle = `rgba(${col},.95)`; ct.lineWidth = 2; ct.beginPath(); ct.arc(cx, gY, 9 * pulse, 0, TAU); ct.stroke();
+  text(rest ? 'v = 0 · at rest' : `slipping ${slip > 0 ? '→' : '←'} ${Math.abs(slip).toFixed(0)}`, cx, gY + 34, 12, `rgba(${col},.95)`);
+  if (!rest && show.n) arrow(cx, gY, slip, 0, '#ff6b6b');
+}
+
+/* ───────── UI sync ───────── */
+function syncUI() {
+  $('vVal').textContent = vCm; $('wVal').textContent = omega.toFixed(2); $('wSl').value = omega; $('vSl').value = vCm;
+  const slip = vCm - omega * R, st = $('status');
+  if (Math.abs(slip) < 0.5) { st.className = 'ok'; st.textContent = '✓ Pure rolling: contact point at rest'; }
+  else if (slip > 0) { st.className = 'bad'; st.textContent = '⚠ Skidding: wheel slides forward'; }
+  else { st.className = 'bad'; st.textContent = '⚠ Spinning: contact point moves backward'; }
+  $('rRim').textContent = (omega * R).toFixed(0) + ' px/s';
+  $('rTop').textContent = (vCm + omega * R).toFixed(0) + ' px/s';
+  $('rCon').textContent = Math.abs(slip) < 0.5 ? '0 px/s' : slip.toFixed(0) + ' px/s';
+}
+$('lock').onchange = e => { locked = e.target.checked; $('wSl').disabled = locked; $('lockNote').style.display = locked ? 'block' : 'none'; if (locked) omega = vCm / R; syncUI(); };
+$('vSl').oninput = e => { vCm = +e.target.value; if (locked) omega = vCm / R; syncUI(); };
+$('wSl').oninput = e => { if (!locked) { omega = +e.target.value; syncUI(); } };
+[['sT', 't'], ['sR', 'r'], ['sN', 'n'], ['sC', 'c']].forEach(([id, k]) => $(id).onchange = e => { show[k] = e.target.checked; if (k === 'c') trace = []; });
+$('playBtn').onclick = () => { playing = !playing; $('playBtn').textContent = playing ? '⏸ Pause' : '▶ Play'; };
+$('resetBtn').onclick = () => { xCm = 0; ang = 0; trace = []; };
+$('slowBtn').onclick = () => { slow = !slow; $('slowBtn').classList.toggle('on', slow); };
+
+/* ───────── loop ───────── */
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.05) * (slow ? 0.25 : 1); last = now;
+  if (playing) {
+    xCm += vCm * dt; ang += omega * dt;
+    if (show.c) { trace.push({ x: xCm + R * Math.cos(ang), y: R * Math.sin(ang) }); while (trace.length > 1 && xCm - trace[0].x > (cx + 80) / S) trace.shift(); }
+  }
+  draw(now); requestAnimationFrame(frame);
+}
+addEventListener('resize', resize);
+resize(); syncUI(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

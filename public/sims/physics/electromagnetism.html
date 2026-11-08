@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lenz's Law · OgScience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080808; --text:#e8e8e8; --muted:rgba(255,255,255,.45); --line:rgba(255,255,255,.10); --glass:rgba(255,255,255,.04); --blue:#6fa0ff; --red:#ff6b6b; --violet:#c2a8ff; --gap:14px; }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  html,body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; overflow:hidden; }
+  body::before { content:''; position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse 70% 50% at 50% 0%, rgba(40,40,70,.45) 0%, transparent 70%); }
+  .noise { position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.035; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .glass { background:var(--glass); border:1px solid var(--line); border-radius:20px; backdrop-filter:blur(22px); -webkit-backdrop-filter:blur(22px); }
+
+  /* ── top bar (the launcher hides this and shows its own, so the space is always reserved) ── */
+  #topbar { position:fixed; top:0; left:0; right:0; height:68px; z-index:20; padding:0 clamp(16px,3vw,40px); display:flex; align-items:center; justify-content:space-between; }
+  .brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:#fff; }
+  .brand .dot { width:32px; height:32px; border-radius:50%; background:#fff; color:#080808; display:grid; place-items:center; font-family:'Syne'; font-weight:800; font-size:14px; }
+  .brand span { font-family:'Syne'; font-weight:700; font-size:16px; letter-spacing:-.01em; }
+  .back { font-family:'Syne'; font-weight:600; font-size:13px; letter-spacing:.04em; color:var(--text); text-decoration:none; padding:10px 22px; border:1px solid rgba(255,255,255,.2); border-radius:100px; transition:all .3s; }
+  .back:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+
+  /* ── page grid: fills the viewport exactly, nothing overlaps, nothing scrolls ── */
+  #app { position:fixed; top:68px; left:0; right:0; bottom:0; padding:0 clamp(12px,2vw,28px) 16px; display:grid; grid-template-rows:auto minmax(0,1fr); gap:var(--gap); }
+  #head { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:0; }
+  #head h1 { font-family:'Syne'; font-weight:800; font-size:clamp(20px,2.2vw,30px); letter-spacing:-.025em; line-height:1.1; white-space:nowrap; }
+  .grad { background:linear-gradient(135deg,#fff 0%,#8a8a8a 100%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  #head p { font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .hr { display:flex; align-items:center; gap:10px; flex:none; }
+  .tag { display:inline-block; font-size:10.5px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:#999; padding:6px 14px; border:1px solid var(--line); border-radius:100px; white-space:nowrap; }
+  .eqn { padding:7px 16px; border-radius:100px; background:rgba(111,160,255,.08); border:1px solid rgba(111,160,255,.22); font-family:'Syne'; font-weight:700; font-size:13px; color:var(--blue); white-space:nowrap; }
+
+  #main { display:grid; grid-template-columns:292px minmax(0,1fr) minmax(0,1fr); gap:var(--gap); min-height:0; min-width:0; }
+  .card { display:flex; flex-direction:column; min-height:0; min-width:0; padding:16px; }
+  #side { overflow-y:auto; scrollbar-width:none; } #side::-webkit-scrollbar { display:none; }
+  .ch { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; flex:none; min-height:20px; }
+  .cap { font-family:'Syne'; font-weight:700; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .lg { display:flex; gap:14px; font-size:11px; color:var(--muted); }
+  .lg i { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--c); box-shadow:0 0 8px var(--c); }
+  .wrap { position:relative; flex:1; min-height:0; border-radius:14px; overflow:hidden; background:rgba(0,0,0,.35); border:1px solid var(--line); }
+  .wrap canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  #pwrap { touch-action:none; cursor:grab; } #pwrap.drag { cursor:grabbing; }
+
+  /* controls */
+  .btns { display:flex; gap:8px; }
+  .pill { flex:1; padding:10px 8px; border-radius:100px; border:1px solid rgba(255,255,255,.2); background:transparent; color:var(--text); font-family:'Syne'; font-weight:600; font-size:12px; letter-spacing:.02em; cursor:pointer; transition:all .25s; white-space:nowrap; }
+  .pill:hover { border-color:rgba(255,255,255,.6); background:rgba(255,255,255,.06); }
+  .pill.primary { background:#fff; color:#080808; border-color:#fff; } .pill.primary:hover { box-shadow:0 8px 28px rgba(255,255,255,.2); }
+  .pill.on { background:rgba(111,160,255,.14); border-color:var(--blue); color:var(--blue); }
+  .sec { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .sl .top { display:flex; justify-content:space-between; align-items:center; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:9px; }
+  .sl .top b { font-family:'Syne'; color:#fff; letter-spacing:.02em; text-transform:none; font-size:13px; }
+  .sl + .sl { margin-top:14px; }
+  .note { font-size:10.5px; color:rgba(255,255,255,.32); margin-top:7px; line-height:1.45; }
+  .note.hot { color:var(--violet); }
+  input[type=range] { -webkit-appearance:none; appearance:none; width:100%; height:2px; background:rgba(255,255,255,.2); border-radius:2px; outline:none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 0 14px rgba(255,255,255,.55); border:none; cursor:pointer; }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; border-radius:50%; background:#fff; border:none; box-shadow:0 0 14px rgba(255,255,255,.55); }
+  .seg { display:flex; gap:8px; }
+  .seg button { flex:1; padding:10px 0; border-radius:14px; border:1px solid var(--line); background:rgba(255,255,255,.02); color:rgba(255,255,255,.55); font-family:'Syne'; font-weight:700; font-size:12.5px; cursor:pointer; transition:all .3s cubic-bezier(.16,1,.3,1); }
+  .seg button:hover { border-color:rgba(255,255,255,.4); color:#fff; }
+  .seg button.active { background:#fff; color:#080808; border-color:#fff; box-shadow:0 0 22px rgba(255,255,255,.2); }
+  .row { display:flex; align-items:center; gap:12px; padding:6px 2px; font-size:13px; cursor:pointer; }
+  .row span.l { flex:1; color:#ddd; }
+  .row .sw { width:10px; height:10px; border-radius:50%; background:var(--c); box-shadow:0 0 10px var(--c); flex:none; }
+  .tg { -webkit-appearance:none; appearance:none; width:40px; height:22px; border-radius:22px; background:rgba(255,255,255,.12); position:relative; cursor:pointer; transition:background .25s; flex:none; }
+  .tg::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .25s cubic-bezier(.16,1,.3,1); }
+  .tg:checked { background:var(--blue); } .tg:checked::after { transform:translateX(18px); }
+
+  /* live readout strip (sits under the experiment, inside its own card) */
+  #foot { flex:none; display:flex; gap:10px; margin-top:12px; }
+  #status { flex:1.7; min-width:0; display:flex; align-items:center; font-size:12px; font-weight:500; line-height:1.4; letter-spacing:.01em; padding:8px 14px; border-radius:14px; border:1px solid; transition:all .3s; }
+  #status.ok { color:var(--blue); border-color:rgba(111,160,255,.4); background:rgba(111,160,255,.08); }
+  #status.vio { color:var(--violet); border-color:rgba(194,168,255,.4); background:rgba(194,168,255,.08); }
+  #status.mid { color:#bbb; border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.04); }
+  .kpi { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; padding:8px 12px; border:1px solid var(--line); border-radius:14px; background:rgba(255,255,255,.02); }
+  .kpi span:first-child { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+  .kpi span:last-child { font-family:'Syne'; font-weight:700; font-size:13px; margin-top:4px; white-space:nowrap; }
+
+  /* graphs */
+  #graphs { display:flex; flex-direction:column; gap:10px; flex:1; min-height:0; }
+  .g { flex:1; min-height:0; display:flex; flex-direction:column; }
+  .gh { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:7px; flex:none; }
+  .gh i { width:8px; height:8px; border-radius:50%; background:var(--c); box-shadow:0 0 8px var(--c); }
+  .gh b { margin-left:auto; font-family:'Syne'; color:#fff; font-size:12px; }
+
+  /* shorter screens: tighten everything instead of scrolling */
+  @media (max-height:860px) {
+    :root { --gap:10px; }
+    .card { padding:12px 14px; }
+    #head p, .note { display:none; }
+    .sec { margin-top:10px; padding-top:10px; }
+    .sl + .sl { margin-top:10px; }
+    .row { padding:3px 2px; }
+    .gh { margin-bottom:4px; }
+    #graphs { gap:6px; }
+  }
+  @media (max-height:700px) { #head h1 { font-size:20px; } .eqn, .tag { display:none; } .seg button, .pill { padding-top:8px; padding-bottom:8px; } }
+
+  /* narrow screens (phones/tablets): stack the cards and let the page scroll */
+  @media (max-width:980px) {
+    html, body { overflow-y:auto; height:auto; }
+    #app { position:static; display:block; padding:76px 12px 24px; }
+    #head { margin-bottom:14px; flex-wrap:wrap; }
+    #head h1 { white-space:normal; }
+    #main { grid-template-columns:1fr; }
+    #side { overflow:visible; }
+    #main > .card + .card { margin-top:0; }
+    #pwrap { flex:none; height:440px; } .g { flex:none; } .g .wrap { flex:none; height:130px; } #graphs { flex:none; }
+    #foot { flex-wrap:wrap; } #status { flex:1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div id="topbar">
+  <a class="brand" href="/"><div class="dot">O</div><span>OgScience</span></a>
+  <a class="back" href="/simulations">← Simulations</a>
+</div>
+
+<div id="app">
+  <div id="head">
+    <div>
+      <h1>Lenz's Law <span class="grad">&amp; Magnetic Braking</span></h1>
+      <p>An induced current always flows in the direction that opposes the change that created it. Drag the magnet or drop it.</p>
+    </div>
+    <div class="hr"><span class="tag">Physics · Electromagnetism</span><span class="eqn">ε = −dΦ/dt</span></div>
+  </div>
+
+  <div id="main">
+    <!-- controls -->
+    <div id="side" class="card glass">
+      <div class="btns"><button class="pill primary" id="dropBtn">Drop magnet</button><button class="pill" id="pauseBtn">Pause</button><button class="pill" id="slowBtn">Slow-mo</button></div>
+
+      <div class="sec sl">
+        <div class="top"><span>Ring resistance</span><b id="rVal">10 Ω</b></div>
+        <input type="range" id="rSl" min="0" max="50" step="1" value="10">
+        <div class="note" id="rNote">0 Ω = superconducting ring: the magnet levitates.</div>
+      </div>
+      <div class="sl">
+        <div class="top"><span>Magnet strength</span><b id="sVal">300</b></div>
+        <input type="range" id="sSl" min="100" max="500" step="10" value="300">
+      </div>
+
+      <div class="sec">
+        <div class="cap" style="margin-bottom:9px">Pole facing the ring</div>
+        <div class="seg"><button id="nBtn" class="active">N pole down</button><button id="sBtn">S pole down</button></div>
+      </div>
+
+      <div class="sec">
+        <label class="row"><i class="sw" style="--c:#ffffff"></i><span class="l">Magnet field</span><input type="checkbox" class="tg" id="tB" checked></label>
+        <label class="row"><i class="sw" style="--c:#c2a8ff"></i><span class="l">Induced field &amp; current</span><input type="checkbox" class="tg" id="tI" checked></label>
+        <label class="row"><i class="sw" style="--c:#6fa0ff"></i><span class="l">Force on magnet</span><input type="checkbox" class="tg" id="tF" checked></label>
+      </div>
+    </div>
+
+    <!-- experiment + live readout -->
+    <div class="card glass">
+      <div class="ch"><span class="cap">Experiment</span>
+        <div class="lg"><span><i style="--c:#ff6b6b"></i>N</span><span><i style="--c:#6fa0ff"></i>S</span><span><i style="--c:#c2a8ff"></i>Induced</span></div></div>
+      <div class="wrap" id="pwrap"><canvas id="pc"></canvas></div>
+      <div id="foot">
+        <div id="status" class="mid"></div>
+        <div class="kpi"><span>Speed</span><span id="rv">0</span></div>
+        <div class="kpi"><span>Current</span><span id="ri">0</span></div>
+        <div class="kpi"><span>Force</span><span id="rf">0</span></div>
+      </div>
+    </div>
+
+    <!-- graphs -->
+    <div class="card glass">
+      <div class="ch"><span class="cap">Real-time graphs</span><span class="cap" style="opacity:.6">time →</span></div>
+      <div id="graphs">
+        <div class="g"><div class="gh"><i style="--c:#6fa0ff"></i>Magnetic flux Φ<b id="vPhi"></b></div><div class="wrap"><canvas id="g1"></canvas></div></div>
+        <div class="g"><div class="gh"><i style="--c:#ffffff"></i>Induced EMF ε = −dΦ/dt<b id="vEmf"></b></div><div class="wrap"><canvas id="g2"></canvas></div></div>
+        <div class="g"><div class="gh"><i style="--c:#c2a8ff"></i>Induced current I<b id="vCur"></b></div><div class="wrap"><canvas id="g3"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TAU = Math.PI * 2;
+
+/* ───────── model ─────────
+   Dipole-on-axis flux through the ring:  Φ(y) = ±Φ0·R³ / (y²+R²)^1.5
+   Ring is an R–L circuit:  L·dI/dt + R·I = −dΦ/dt   (L = 1)
+   Force on magnet:         F = I·dΦ/dy  → opposes the motion (Lenz's law)          */
+const WORLD_H = 500, WORLD_W = 340, RING_Y = 250, RR = 60, RY = 20, MAG_W = 40, MAG_H = 80, FLOOR = 455, TOP = 40;
+const G = 250, L = 1, AIR = 0.3, HIST = 320;
+let res = 10, phi0 = 300, pol = 1, showB = true, showI = true, showF = true, playing = true, slow = false;
+const st = { y: 50, v: 0, I: 0, drag: false, target: 50, dash: 0, hist: [], F: 0, emf: 0, flux: 0, sE: 10, sI: 10 };
+
+const phiAt = y => { const r = y - RING_Y; return pol * phi0 * RR ** 3 / Math.pow(r * r + RR * RR, 1.5); };
+const dphiAt = y => { const r = y - RING_Y; return -3 * pol * phi0 * r * RR ** 3 / Math.pow(r * r + RR * RR, 2.5); };
+
+function step(dt) {
+  const N = 10, h = dt / N;
+  for (let i = 0; i < N; i++) {
+    const dp = dphiAt(st.y);
+    st.I += h * (-st.v * dp - res * st.I) / L;               // ring circuit
+    if (!st.drag) {
+      const a = G + st.I * dp - AIR * st.v;                  // gravity + magnetic force − air drag
+      st.v += a * h; st.y += st.v * h;
+      if (st.y > FLOOR) { st.y = FLOOR; st.v = 0; }
+      if (st.y < TOP) { st.y = TOP; if (st.v < 0) st.v = 0; }
+    }
+  }
+  const dp = dphiAt(st.y);
+  st.flux = phiAt(st.y); st.emf = -st.v * dp; st.F = st.I * dp;
+  st.hist.push({ flux: st.flux, emf: st.emf, I: st.I }); if (st.hist.length > HIST) st.hist.shift();
+}
+function drop() { st.y = 50; st.v = 0; st.I = 0; st.drag = false; st.hist = []; playing = true; $('pauseBtn').textContent = 'Pause'; }
+
+/* ───────── canvases (each sized to its own container) ───────── */
+const cvs = { p: $('pc'), g1: $('g1'), g2: $('g2'), g3: $('g3') }, ctxs = {}, size = {};
+Object.keys(cvs).forEach(k => ctxs[k] = cvs[k].getContext('2d'));
+function fit(k) {
+  const c = cvs[k], r = c.parentElement.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  c.width = Math.max(1, Math.round(r.width * dpr)); c.height = Math.max(1, Math.round(r.height * dpr));
+  ctxs[k].setTransform(dpr, 0, 0, dpr, 0, 0); size[k] = { w: r.width, h: r.height };
+}
+const ro = new ResizeObserver(() => Object.keys(cvs).forEach(fit));
+Object.values(cvs).forEach(c => ro.observe(c.parentElement));
+addEventListener('resize', () => Object.keys(cvs).forEach(fit));
+
+/* ───────── physics view ───────── */
+const geo = () => { const { w, h } = size.p, s = Math.min(h / WORLD_H, w / WORLD_W); return { s, ox: w / 2, oy: (h - WORLD_H * s) / 2 }; };
+
+function arrow(c, x1, y1, x2, y2, col, wd = 2.4) {
+  const a = Math.atan2(y2 - y1, x2 - x1), hd = 9;
+  c.save(); c.shadowColor = col; c.shadowBlur = 10; c.strokeStyle = col; c.fillStyle = col; c.lineWidth = wd; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+  c.beginPath(); c.moveTo(x2, y2); c.lineTo(x2 - hd * Math.cos(a - .45), y2 - hd * Math.sin(a - .45)); c.lineTo(x2 - hd * Math.cos(a + .45), y2 - hd * Math.sin(a + .45)); c.closePath(); c.fill(); c.restore();
+}
+function txt(c, s, x, y, size, col, align = 'center') { c.font = `700 ${size}px Syne, sans-serif`; c.fillStyle = col; c.textAlign = align; c.textBaseline = 'middle'; c.fillText(s, x, y); }
+
+function drawPhysics() {
+  const c = ctxs.p, { w, h } = size.p, { s, ox, oy } = geo(); if (!w) return;
+  c.clearRect(0, 0, w, h); c.save(); c.translate(ox, oy); c.scale(s, s);
+  const half = w / 2 / s + 5;
+
+  // grid
+  c.strokeStyle = 'rgba(255,255,255,.035)'; c.lineWidth = 1 / s;
+  for (let x = -Math.floor(half / 50) * 50; x <= half; x += 50) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, WORLD_H); c.stroke(); }
+  for (let y = 0; y <= WORLD_H; y += 50) { c.beginPath(); c.moveTo(-half, y); c.lineTo(half, y); c.stroke(); }
+  // floor
+  const fy = FLOOR + MAG_H / 2, fg = c.createLinearGradient(0, fy, 0, WORLD_H + 20); fg.addColorStop(0, 'rgba(255,255,255,.08)'); fg.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = fg; c.fillRect(-half, fy, half * 2, WORLD_H + 20 - fy); c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 2 / s; c.beginPath(); c.moveTo(-half, fy); c.lineTo(half, fy); c.stroke();
+
+  const ringBase = (a0, a1) => { c.beginPath(); c.ellipse(0, RING_Y, RR, RY, 0, a0, a1); };
+  const ringStyle = () => { c.strokeStyle = 'rgba(255,255,255,.62)'; c.lineWidth = 7; c.shadowColor = 'rgba(111,160,255,.45)'; c.shadowBlur = 12; c.lineCap = 'round'; };
+
+  // back half of the ring (behind the magnet)
+  c.save(); ringStyle(); ringBase(Math.PI, TAU); c.stroke(); c.restore();
+
+  // magnet field lines
+  if (showB) {
+    c.lineWidth = 1.4; c.lineCap = 'round';
+    [1, 2, 3].forEach(k => { const wdt = 38 + k * 42, al = .26 - k * .06; c.strokeStyle = `rgba(255,255,255,${al})`;
+      [-1, 1].forEach(sg => { c.beginPath(); c.moveTo(sg * 14, st.y + MAG_H / 2); c.bezierCurveTo(sg * wdt * 1.9, st.y + MAG_H / 2 + wdt * 1.2, sg * wdt * 1.9, st.y - MAG_H / 2 - wdt * 1.2, sg * 14, st.y - MAG_H / 2); c.stroke(); }); });
+  }
+
+  // magnet (bottom half = pole facing the ring)
+  const bot = pol === 1 ? { col: '#ff6b6b', l: 'N' } : { col: '#6fa0ff', l: 'S' }, top = pol === 1 ? { col: '#6fa0ff', l: 'S' } : { col: '#ff6b6b', l: 'N' };
+  const mx = -MAG_W / 2, my = st.y - MAG_H / 2;
+  c.save(); c.shadowColor = st.drag ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.6)'; c.shadowBlur = 16;
+  [[my, top], [st.y, bot]].forEach(([y0, p], i) => {
+    c.fillStyle = p.col; c.beginPath(); c.roundRect ? c.roundRect(mx, y0, MAG_W, MAG_H / 2, i ? [0, 0, 8, 8] : [8, 8, 0, 0]) : c.rect(mx, y0, MAG_W, MAG_H / 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,.18)'; c.fillRect(mx + 5, y0 + 3, 6, MAG_H / 2 - 6);
+  }); c.restore();
+  txt(c, top.l, 0, my + MAG_H / 4, 18, '#fff'); txt(c, bot.l, 0, st.y + MAG_H / 4, 18, '#fff');
+
+  // front half of the ring (in front of the magnet)
+  c.save(); ringStyle(); ringBase(0, Math.PI); c.stroke(); c.restore();
+
+  // induced current: animated flow around the ring, direction = sign of I
+  if (showI && Math.abs(st.I) > 0.4) {
+    const mag = Math.min(1, Math.abs(st.I) / 120);
+    c.save(); c.strokeStyle = '#c2a8ff'; c.shadowColor = '#c2a8ff'; c.shadowBlur = 14; c.lineWidth = 3 + mag * 5; c.lineCap = 'round'; c.setLineDash([9, 15]); c.lineDashOffset = -st.dash;
+    ringBase(0, Math.PI); c.stroke(); ringBase(Math.PI, TAU); c.stroke(); c.restore();
+    // induced B arrow through the ring (I>0 → flux downward, I<0 → upward)
+    const len = Math.min(24 + Math.abs(st.I) * .7, 92), up = st.I < 0;
+    arrow(c, 0, RING_Y, 0, RING_Y + (up ? -len : len), '#c2a8ff', 3);
+    txt(c, 'B', 16, RING_Y + (up ? -len : len) * .6, 12, '#c2a8ff', 'left');
+    txt(c, st.I > 0 ? '↻ CW' : '↺ CCW', RR + 16, RING_Y + 5, 11, '#c2a8ff', 'left');
+  }
+
+  // force on the magnet
+  if (showF && Math.abs(st.F) > 4) {
+    const len = Math.max(-110, Math.min(110, st.F * 0.12)), x = MAG_W / 2 + 18;
+    arrow(c, x, st.y, x, st.y + len, '#6fa0ff', 3); txt(c, 'F', x + 12, st.y + len / 2, 12, '#6fa0ff', 'left');
+  }
+  c.restore();
+}
+
+/* ───────── graphs ───────── */
+function drawGraph(k, key, col, scale) {
+  const c = ctxs[k], { w, h } = size[k]; if (!w) return; c.clearRect(0, 0, w, h);
+  const mid = h / 2, A = h * .42;
+  c.strokeStyle = 'rgba(255,255,255,.05)'; c.lineWidth = 1;
+  for (let i = 1; i < 6; i++) { c.beginPath(); c.moveTo(w * i / 6, 0); c.lineTo(w * i / 6, h); c.stroke(); }
+  c.strokeStyle = 'rgba(255,255,255,.07)'; [-.5, .5].forEach(f => { c.beginPath(); c.moveTo(0, mid - f * 2 * A); c.lineTo(w, mid - f * 2 * A); c.stroke(); });
+  c.strokeStyle = 'rgba(255,255,255,.28)'; c.beginPath(); c.moveTo(0, mid); c.lineTo(w, mid); c.stroke();
+  const n = st.hist.length; if (n < 2) return;
+  const X = i => w - (n - 1 - i) / (HIST - 1) * w, Y = v => mid - Math.max(-1.15, Math.min(1.15, v / scale)) * A;
+  c.beginPath(); c.moveTo(X(0), mid); for (let i = 0; i < n; i++) c.lineTo(X(i), Y(st.hist[i][key])); c.lineTo(X(n - 1), mid); c.closePath();
+  const f = c.createLinearGradient(0, 0, 0, h); f.addColorStop(0, col + '33'); f.addColorStop(.5, col + '08'); f.addColorStop(1, col + '33'); c.fillStyle = f; c.fill();
+  c.save(); c.strokeStyle = col; c.lineWidth = 2; c.lineJoin = 'round'; c.shadowColor = col; c.shadowBlur = 8; c.beginPath();
+  for (let i = 0; i < n; i++) i ? c.lineTo(X(i), Y(st.hist[i][key])) : c.moveTo(X(i), Y(st.hist[i][key])); c.stroke(); c.restore();
+  const ex = X(n - 1), ey = Y(st.hist[n - 1][key]); c.fillStyle = '#fff'; c.beginPath(); c.arc(ex - 2, ey, 3.5, 0, TAU); c.fill();
+}
+
+/* ───────── readout / UI ───────── */
+let frameCount = 0;
+function updateReadout() {
+  const f = n => (Math.abs(n) < 0.05 ? 0 : n).toFixed(1);
+  $('rv').textContent = f(st.v) + ' px/s'; $('ri').textContent = f(st.I) + ' a.u.'; $('rf').textContent = f(st.F) + ' a.u.';
+  $('vPhi').textContent = f(st.flux); $('vEmf').textContent = f(st.emf); $('vCur').textContent = f(st.I);
+  const el = $('status'), rate = st.v * dphiAt(st.y) * Math.sign(st.flux || 1);   // d|Φ|/dt
+  if (res === 0 && !st.drag && Math.abs(st.v) < 8 && st.y < RING_Y - 25 && st.y > TOP + 5 && Math.abs(st.I) > 1) { el.className = 'vio'; el.textContent = 'Levitating: the superconducting ring holds the magnet up'; }
+  else if (Math.abs(st.I) < 0.4) { el.className = 'mid'; el.textContent = 'No flux change, so no induced current'; }
+  else if (rate > 0) { el.className = 'ok'; el.textContent = 'Flux rising: induced field opposes the magnet and pushes it away'; }
+  else { el.className = 'vio'; el.textContent = 'Flux falling: induced field supports the magnet and pulls it back'; }
+}
+$('dropBtn').onclick = drop;
+$('pauseBtn').onclick = () => { playing = !playing; $('pauseBtn').textContent = playing ? 'Pause' : 'Play'; };
+$('slowBtn').onclick = () => { slow = !slow; $('slowBtn').classList.toggle('on', slow); };
+$('rSl').oninput = e => { res = +e.target.value; $('rVal').textContent = res + ' Ω'; $('rNote').className = 'note' + (res === 0 ? ' hot' : ''); $('rNote').textContent = res === 0 ? 'Superconducting ring: no resistance, so the current never dies and the magnet levitates.' : '0 Ω = superconducting ring: the magnet levitates.'; };
+$('sSl').oninput = e => { phi0 = +e.target.value; $('sVal').textContent = phi0; };
+$('nBtn').onclick = () => { pol = 1; $('nBtn').classList.add('active'); $('sBtn').classList.remove('active'); };
+$('sBtn').onclick = () => { pol = -1; $('sBtn').classList.add('active'); $('nBtn').classList.remove('active'); };
+$('tB').onchange = e => showB = e.target.checked; $('tI').onchange = e => showI = e.target.checked; $('tF').onchange = e => showF = e.target.checked;
+
+/* drag the magnet by hand: moving it induces current too */
+const pw = $('pwrap');
+const worldY = e => { const r = pw.getBoundingClientRect(), { s, oy } = geo(); return (e.clientY - r.top - oy) / s; };
+pw.addEventListener('pointerdown', e => { const y = worldY(e); if (Math.abs(y - st.y) < 70) { st.drag = true; st.target = y; pw.classList.add('drag'); pw.setPointerCapture(e.pointerId); } });
+pw.addEventListener('pointermove', e => { if (st.drag) st.target = worldY(e); });
+['pointerup', 'pointercancel'].forEach(ev => pw.addEventListener(ev, () => { st.drag = false; pw.classList.remove('drag'); }));
+
+/* ───────── loop ───────── */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 0.033) * (slow ? 0.3 : 1); last = now;
+  if (playing && dt > 0) {
+    if (st.drag) { const ny = Math.max(TOP, Math.min(FLOOR, st.target)); st.v = 0.5 * st.v + 0.5 * (ny - st.y) / dt; st.y = ny; }
+    step(dt); st.dash += Math.sign(st.I) * Math.min(160, 30 + Math.abs(st.I) * 2) * dt;
+  }
+  const mE = Math.max(5, ...st.hist.map(p => Math.abs(p.emf))) * 1.15, mI = Math.max(5, ...st.hist.map(p => Math.abs(p.I))) * 1.15;
+  st.sE += (mE - st.sE) * 0.12; st.sI += (mI - st.sI) * 0.12;
+  drawPhysics(); drawGraph('g1', 'flux', '#6fa0ff', phi0); drawGraph('g2', 'emf', '#ffffff', st.sE); drawGraph('g3', 'I', '#c2a8ff', st.sI);
+  if ((frameCount++ & 3) === 0) updateReadout();
+  requestAnimationFrame(frame);
+}
+Object.keys(cvs).forEach(fit); updateReadout(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
